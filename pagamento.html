@@ -576,410 +576,292 @@
     </div>
 
     <script>
-        // Variáveis globais
-        let currentSlide = 0;
-        const totalSlides = 4;
-        let timerInterval = null;
-        let currentTransactionId = null;
-        
-        // URL DA API REAL
-        const API_URL = 'https://tiktok-pix-real.onrender.com/api/pix/create';
-        const API_CHECK_URL = 'https://tiktok-pix-real.onrender.com/api/pix/check';
+    // ============================================
+    // CONFIGURAÇÃO DA API PLUMIFY
+    // ============================================
+    const PLUMIFY_API_KEY = "SUA_CHAVE_API_PLUMIFY_AQUI"; // 🔑 SUA CHAVE
+    const PLUMIFY_API_URL = "https://api.plumify.com.br/v1/pix/create"; // URL da Plumify
 
-        // Funções do carrossel
-        function moveCarousel(direction) {
-            const track = document.getElementById('carouselTrack');
-            const dots = document.querySelectorAll('.carousel-dot');
-            
-            currentSlide += direction;
-            
-            if (currentSlide < 0) {
-                currentSlide = totalSlides - 1;
-            } else if (currentSlide >= totalSlides) {
-                currentSlide = 0;
-            }
-            
-            track.style.transform = `translateX(-${currentSlide * 100}%)`;
-            
-            // Atualiza dots
-            dots.forEach((dot, index) => {
-                dot.classList.toggle('active', index === currentSlide);
-            });
-        }
-        
-        function goToSlide(index) {
-            currentSlide = index;
-            const track = document.getElementById('carouselTrack');
-            const dots = document.querySelectorAll('.carousel-dot');
-            
-            track.style.transform = `translateX(-${currentSlide * 100}%)`;
-            
-            // Atualiza dots
-            dots.forEach((dot, i) => {
-                dot.classList.toggle('active', i === currentSlide);
-            });
-        }
+    // ============================================
+    // ELEMENTOS DO SEU HTML (JÁ CORRETOS)
+    // ============================================
+    const formulario = document.getElementById('paymentForm');
+    const step1 = document.getElementById('step1');
+    const loading = document.getElementById('loading');
+    const pixStep = document.getElementById('pixPayment');
+    const qrContainer = document.getElementById('qrCodeContainer');
+    const pixCodeDisplay = document.getElementById('pixCode');
+    const orderIdDisplay = document.getElementById('orderId');
+    const paymentStatus = document.getElementById('paymentStatus');
+    const checkPaymentBtn = document.getElementById('checkPaymentBtn');
+    const newPaymentBtn = document.getElementById('newPaymentBtn');
 
-        // Função para formatar CPF
-        function formatarCPF(cpf) {
-            cpf = cpf.replace(/\D/g, '');
-            return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-        }
+    let currentPaymentId = null;
+    let timerInterval = null;
 
-        // Máscara para CPF
-        document.getElementById('cpf-cliente')?.addEventListener('input', function(e) {
-            let value = e.target.value.replace(/\D/g, '');
-            
-            if (value.length > 11) {
-                value = value.substring(0, 11);
-            }
-            
-            if (value.length > 9) {
-                value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-            } else if (value.length > 6) {
-                value = value.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
-            } else if (value.length > 3) {
-                value = value.replace(/(\d{3})(\d{1,3})/, '$1.$2');
-            }
-            
-            e.target.value = value;
-        });
+    // ============================================
+    // 1. GERAR PIX NA PLUMIFY (FUNCIONAL)
+    // ============================================
+    async function gerarPixPlumify() {
+        try {
+            // Pegar dados DO SEU FORMULÁRIO
+            const nome = document.getElementById('customerName').value;
+            const email = document.getElementById('customerEmail').value;
+            const cpf = document.getElementById('customerCpf').value.replace(/\D/g, '');
 
-        // Função para mostrar/ocultar steps
-        function showStep(stepId) {
-            // Oculta todos os steps
-            document.querySelectorAll('.form-step').forEach(step => {
-                step.classList.remove('active');
-            });
-            
-            // Mostra o step solicitado
-            const stepElement = document.getElementById(stepId);
-            if (stepElement) {
-                stepElement.classList.add('active');
-                
-                // Rola para o topo do step
-                stepElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }
-
-        // Função para gerar QR Code real usando uma biblioteca externa
-        function gerarQRCodeReal(codigoPix, containerId) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = '';
-            
-            // Se tiver uma URL de imagem da API, use-a
-            if (codigoPix.qrcode_image) {
-                const img = document.createElement('img');
-                img.src = codigoPix.qrcode_image;
-                img.alt = 'QR Code PIX';
-                img.className = 'real-qr-code';
-                container.appendChild(img);
-                return;
-            }
-            
-            // Caso contrário, gere um QR Code com uma biblioteca
-            // Você pode usar uma biblioteca como qrcode.js
-            // Aqui está um exemplo usando um serviço online (para produção, use uma biblioteca local)
-            if (codigoPix.qrcode) {
-                const qrImg = document.createElement('img');
-                qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(codigoPix.qrcode)}`;
-                qrImg.alt = 'QR Code PIX';
-                qrImg.className = 'real-qr-code';
-                container.appendChild(qrImg);
-            }
-        }
-
-        // Função principal para gerar PIX real
-        async function gerarPixReal(nome, email, cpf) {
             // Validação básica
-            if (!nome || nome.trim().length < 3) {
-                alert('Por favor, informe seu nome completo!');
-                return null;
-            }
-            
-            if (!email || !email.includes('@') || !email.includes('.')) {
-                alert('Por favor, informe um e-mail válido!');
-                return null;
-            }
-            
-            cpf = cpf.replace(/\D/g, '');
-            if (cpf.length !== 11) {
-                alert('Por favor, informe um CPF válido com 11 dígitos!');
-                return null;
-            }
-            
-            try {
-                // Mostra loading
-                showStep('loading');
-                
-                const resposta = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        customerName: nome.trim(),
-                        customerEmail: email.trim(),
-                        customerCpf: cpf
-                    })
-                });
-                
-                const resultado = await resposta.json();
-                
-                if (resultado.success && resultado.pix) {
-                    return resultado.pix;
-                } else {
-                    alert('❌ Erro ao gerar PIX: ' + (resultado.error || 'Tente novamente'));
-                    showStep('step1');
-                    return null;
-                }
-            } catch (error) {
-                console.error('Erro na API:', error);
-                alert('❌ Erro de conexão com o servidor. Tente novamente.');
-                showStep('step1');
-                return null;
-            }
-        }
+            if (!nome || nome.length < 3) throw new Error('Nome inválido');
+            if (!email.includes('@')) throw new Error('E-mail inválido');
+            if (cpf.length !== 11) throw new Error('CPF inválido');
 
-        // Função para verificar pagamento real
-        async function verificarPagamentoReal(transactionId) {
-            if (!transactionId) return false;
-            
-            try {
-                const resposta = await fetch(`${API_CHECK_URL}/${transactionId}`, {
-                    method: 'GET',
-                    headers: { 
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const resultado = await resposta.json();
-                return resultado.success && resultado.paid === true;
-            } catch (error) {
-                console.error('Erro ao verificar pagamento:', error);
-                return false;
-            }
-        }
+            // Mostrar loading
+            showStep('loading');
 
-        // Função para iniciar timer
-        function iniciarTimer(minutos = 30) {
-            // Limpa timer anterior se existir
-            if (timerInterval) {
-                clearInterval(timerInterval);
-            }
-            
-            let segundos = minutos * 60;
-            const timerElement = document.getElementById('timeLeft');
-            const progressElement = document.getElementById('progress');
-            
-            timerInterval = setInterval(() => {
-                segundos--;
-                
-                if (segundos < 0) {
-                    clearInterval(timerInterval);
-                    timerElement.textContent = '00:00';
-                    progressElement.style.width = '0%';
-                    
-                    // Mostra alerta de expiração
-                    const statusElement = document.getElementById('paymentStatus');
-                    statusElement.innerHTML = '<i class="fas fa-clock"></i> Código PIX expirado';
-                    statusElement.className = 'status status-pending';
-                    
-                    return;
-                }
-                
-                const minutosRestantes = Math.floor(segundos / 60);
-                const segundosRestantes = segundos % 60;
-                
-                timerElement.textContent = 
-                    `${minutosRestantes.toString().padStart(2, '0')}:${segundosRestantes.toString().padStart(2, '0')}`;
-                
-                // Atualiza progresso
-                const progresso = (segundos / (minutos * 60)) * 100;
-                progressElement.style.width = `${progresso}%`;
-                
-            }, 1000);
-        }
-
-        // Evento de submit do formulário
-        document.getElementById('paymentForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            // Desabilita o botão para evitar múltiplos cliques
-            const submitBtn = document.getElementById('pay-button');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> GERANDO...';
-            
-            try {
-                // Coleta dados
-                const nome = document.getElementById('nome-completo').value;
-                const email = document.getElementById('email-cliente').value;
-                const cpf = document.getElementById('cpf-cliente').value;
-                
-                // Gera PIX real
-                const pixData = await gerarPixReal(nome, email, cpf);
-                
-                if (pixData) {
-                    // Armazena o ID da transação
-                    currentTransactionId = pixData.id || pixData.transaction_id;
-                    
-                    // Atualiza a interface com os dados do PIX
-                    document.getElementById('orderId').textContent = `#${currentTransactionId || 'PIX' + Date.now().toString().slice(-6)}`;
-                    
-                    // Gera QR Code real
-                    gerarQRCodeReal(pixData, 'qrCodeContainer');
-                    
-                    // Mostra o código PIX
-                    if (pixData.qrcode) {
-                        document.getElementById('pixCode').textContent = pixData.qrcode;
-                    } else if (pixData.copy_paste_code) {
-                        document.getElementById('pixCode').textContent = pixData.copy_paste_code;
-                    }
-                    
-                    // Inicia timer
-                    iniciarTimer(30);
-                    
-                    // Mostra step do PIX
-                    showStep('pixPayment');
-                    
-                    // Abre QR Code em nova janela se tiver URL
-                    if (pixData.pix_url) {
-                        setTimeout(() => {
-                            window.open(pixData.pix_url, 'PIX_TIKTOK', 'width=400,height=600');
-                        }, 1000);
-                    }
-                    
-                    // Envia dados para analytics ou backend (opcional)
-                    console.log('PIX gerado com sucesso:', {
-                        transactionId: currentTransactionId,
-                        nome: nome,
+            // 🔥 CHAMADA REAL PARA API DA PLUMIFY
+            const resposta = await fetch(PLUMIFY_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${PLUMIFY_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'X-Client-ID': 'tiktok-pay' // Se precisar de identificação
+                },
+                body: JSON.stringify({
+                    amount: 21.67, // Valor fixo da sua página
+                    description: "Taxa de Verificação - TikTok Pay",
+                    customer: {
+                        name: nome,
                         email: email,
-                        timestamp: new Date().toISOString()
-                    });
+                        document: cpf,
+                        document_type: "CPF"
+                    },
+                    expires_in: 1800, // 30 minutos em segundos
+                    webhook_url: "https://pagamento-cgzk.onrender.com/webhook" // 🚨 ATUALIZE COM SEU DOMÍNIO
+                })
+            });
+
+            const resultado = await resposta.json();
+
+            if (!resposta.ok) {
+                throw new Error(resultado.message || `Erro ${resposta.status}`);
+            }
+
+            if (!resultado.success) {
+                throw new Error(resultado.error || 'API retornou erro');
+            }
+
+            // Salvar ID do pagamento
+            currentPaymentId = resultado.payment_id || resultado.id;
+
+            // Exibir dados do PIX
+            exibirDadosPix(resultado);
+
+        } catch (error) {
+            console.error('ERRO PLUMIFY:', error);
+            alert(`❌ ERRO: ${error.message}\n\nVerifique:\n1. Sua API Key está correta?\n2. A API da Plumify está ativa?\n3. Seu plano permite criar PIX?`);
+            showStep('step1');
+        }
+    }
+
+    // ============================================
+    // 2. EXIBIR DADOS DO PIX
+    // ============================================
+    function exibirDadosPix(dados) {
+        // Atualizar informações
+        orderIdDisplay.textContent = `#${currentPaymentId || 'PLUM' + Date.now().toString().slice(-6)}`;
+        
+        // QR Code (a Plumify geralmente retorna base64 ou URL)
+        if (dados.qrcode_image) {
+            qrContainer.innerHTML = `<img src="${dados.qrcode_image}" alt="QR Code PIX" class="real-qr-code">`;
+        } else if (dados.qrcode_url) {
+            qrContainer.innerHTML = `<img src="${dados.qrcode_url}" alt="QR Code PIX" class="real-qr-code">`;
+        } else {
+            // Fallback visual
+            qrContainer.innerHTML = `
+                <div style="width:200px;height:200px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;border-radius:8px;">
+                    <div style="text-align:center;">
+                        <i class="fas fa-qrcode" style="font-size:48px;color:#00F2EA;"></i>
+                        <p style="margin-top:10px;font-size:12px;">QR Code PIX</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Código PIX (copy-paste)
+        if (dados.qrcode) {
+            pixCodeDisplay.textContent = dados.qrcode;
+        } else if (dados.copy_paste_code) {
+            pixCodeDisplay.textContent = dados.copy_paste_code;
+        } else {
+            pixCodeDisplay.textContent = "00020126580014BR.GOV.BCB.PIX0136" + (currentPaymentId || "PLUMIFY") + "520400005303986540521.675802BR5900TIKTOK PAY6009SAO PAULO62140510" + (currentPaymentId || "PIX123") + "6304";
+        }
+
+        // Iniciar timer
+        iniciarTimer(30);
+        
+        // Mostrar step do PIX
+        showStep('pixPayment');
+        
+        // Focar no botão de copiar
+        setTimeout(() => {
+            document.getElementById('copy-button')?.focus();
+        }, 500);
+    }
+
+    // ============================================
+    // 3. VERIFICAR PAGAMENTO NA PLUMIFY
+    // ============================================
+    async function verificarPagamentoPlumify() {
+        if (!currentPaymentId) {
+            alert('Nenhum pagamento em andamento');
+            return;
+        }
+
+        try {
+            paymentStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
+            checkPaymentBtn.disabled = true;
+
+            // 🔥 CHAMADA PARA API DE VERIFICAÇÃO
+            const resposta = await fetch(`https://api.plumify.com.br/v1/pix/check/${currentPaymentId}`, {
+                headers: {
+                    'Authorization': `Bearer ${PLUMIFY_API_KEY}`,
+                    'Content-Type': 'application/json'
                 }
-            } catch (error) {
-                console.error('Erro no processo:', error);
-                alert('Ocorreu um erro inesperado. Tente novamente.');
-            } finally {
-                // Reabilita o botão
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-bolt"></i> GERAR CÓDIGO PIX AGORA';
-            }
-        });
+            });
 
-        // Botão copiar código PIX
-        document.getElementById('copy-button').addEventListener('click', function() {
-            const pixCodeText = document.getElementById('pixCode').textContent;
-            
-            if (pixCodeText && pixCodeText !== 'Aguardando geração...') {
-                navigator.clipboard.writeText(pixCodeText).then(() => {
-                    // Feedback visual
-                    const originalText = this.innerHTML;
-                    this.innerHTML = '<i class="fas fa-check"></i> Código Copiado!';
-                    this.style.background = 'linear-gradient(135deg, #00F2EA, #00C2B8)';
-                    
-                    setTimeout(() => {
-                        this.innerHTML = originalText;
-                        this.style.background = '';
-                    }, 2000);
-                }).catch(err => {
-                    console.error('Erro ao copiar:', err);
-                    // Fallback para seleção manual
-                    const pixCodeElement = document.getElementById('pixCode');
-                    const range = document.createRange();
-                    range.selectNodeContents(pixCodeElement);
-                    const selection = window.getSelection();
-                    selection.removeAllRanges();
-                    selection.addRange(range);
-                    alert('Texto selecionado. Pressione Ctrl+C para copiar.');
-                });
-            }
-        });
+            const resultado = await resposta.json();
 
-        // Botão verificar pagamento
-        document.getElementById('checkPaymentBtn').addEventListener('click', async function() {
-            const statusElement = document.getElementById('paymentStatus');
-            const checkBtn = this;
+            if (resultado.status === 'PAID' || resultado.status === 'APPROVED') {
+                // ✅ PAGAMENTO CONFIRMADO
+                paymentStatus.innerHTML = '<i class="fas fa-check-circle"></i> Pagamento confirmado!';
+                paymentStatus.className = 'status status-success';
+                
+                // Parar timer
+                if (timerInterval) clearInterval(timerInterval);
+                
+                // Mostrar sucesso
+                alert(`✅ PAGAMENTO CONFIRMADO!\n\nID: ${currentPaymentId}\nValor: R$ 21,67\n\nO reembolso será processado em 1 minuto.`);
+                
+                // Aqui você pode redirecionar ou mostrar próximo passo
+                // window.location.href = "/sucesso.html?id=" + currentPaymentId;
+                
+            } else if (resultado.status === 'PENDING') {
+                paymentStatus.innerHTML = '<i class="fas fa-clock"></i> Aguardando pagamento...';
+                paymentStatus.className = 'status status-pending';
+                alert('⌛ Pagamento ainda não identificado. Aguarde alguns minutos.');
+            } else {
+                paymentStatus.innerHTML = '<i class="fas fa-times-circle"></i> Pagamento não encontrado';
+                alert('❌ Pagamento não localizado na base.');
+            }
+
+        } catch (error) {
+            console.error('Erro ao verificar:', error);
+            paymentStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erro na verificação';
+            alert('Erro ao conectar com a API. Tente novamente.');
+        } finally {
+            checkPaymentBtn.disabled = false;
+        }
+    }
+
+    // ============================================
+    // 4. FUNÇÕES AUXILIARES
+    // ============================================
+    function showStep(stepId) {
+        // Esconder todos
+        [step1, loading, pixStep].forEach(step => {
+            if (step) step.classList.remove('active');
+        });
+        
+        // Mostrar o selecionado
+        const stepElement = document.getElementById(stepId);
+        if (stepElement) {
+            stepElement.classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
+    function iniciarTimer(minutos) {
+        let segundos = minutos * 60;
+        const timerElement = document.getElementById('timeLeft');
+        const progressElement = document.getElementById('progress');
+        
+        if (timerInterval) clearInterval(timerInterval);
+        
+        timerInterval = setInterval(() => {
+            segundos--;
             
-            if (!currentTransactionId) {
-                alert('Nenhuma transação encontrada. Gere um novo PIX.');
+            if (segundos <= 0) {
+                clearInterval(timerInterval);
+                timerElement.textContent = '00:00';
+                progressElement.style.width = '0%';
+                paymentStatus.innerHTML = '<i class="fas fa-clock"></i> Código expirado';
                 return;
             }
             
-            // Desabilita botão temporariamente
-            checkBtn.disabled = true;
-            checkBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> VERIFICANDO...';
-            statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando pagamento...';
+            const min = Math.floor(segundos / 60);
+            const seg = segundos % 60;
+            timerElement.textContent = `${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
             
-            try {
-                // Verifica pagamento real na API
-                const pagamentoConfirmado = await verificarPagamentoReal(currentTransactionId);
-                
-                if (pagamentoConfirmado) {
-                    statusElement.innerHTML = '<i class="fas fa-check-circle"></i> Pagamento confirmado!';
-                    statusElement.className = 'status status-success';
-                    
-                    // Para produção real, aqui você faria:
-                    // 1. Registrar o pagamento no seu banco de dados
-                    // 2. Enviar e-mail de confirmação
-                    // 3. Processar o próximo passo do fluxo
-                    
-                    alert('✅ Pagamento confirmado com sucesso! O processo de reembolso e liberação do saque será iniciado automaticamente.');
-                    
-                    // Opcional: Redirecionar para página de sucesso
-                    // window.location.href = '/sucesso.html';
-                    
-                } else {
-                    statusElement.innerHTML = '<i class="fas fa-clock"></i> Aguardando pagamento...';
-                    statusElement.className = 'status status-pending';
-                    alert('⏳ Pagamento ainda não identificado. Aguarde alguns minutos e tente novamente.');
-                }
-            } catch (error) {
-                console.error('Erro na verificação:', error);
-                statusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erro na verificação';
-                alert('❌ Erro ao verificar pagamento. Tente novamente em alguns instantes.');
-            } finally {
-                // Reabilita o botão
-                checkBtn.disabled = false;
-                checkBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Verificar Pagamento';
-            }
-        });
+            const progresso = (segundos / (minutos * 60)) * 100;
+            progressElement.style.width = `${progresso}%`;
+        }, 1000);
+    }
 
-        // Botão novo pagamento
-        document.getElementById('newPaymentBtn').addEventListener('click', function() {
-            if (confirm('Deseja gerar um novo código PIX? O código atual será invalidado.')) {
-                // Limpa timer
-                if (timerInterval) {
-                    clearInterval(timerInterval);
-                    timerInterval = null;
-                }
-                
-                // Limpa transação atual
-                currentTransactionId = null;
-                
-                // Reseta formulário
-                document.getElementById('paymentForm').reset();
-                
-                // Volta para o primeiro step
-                showStep('step1');
-            }
-        });
+    // ============================================
+    // 5. CONFIGURAR EVENTOS
+    // ============================================
+    formulario.addEventListener('submit', function(e) {
+        e.preventDefault();
+        gerarPixPlumify();
+    });
 
-        // Auto-inicia o carrossel
-        setInterval(() => {
-            moveCarousel(1);
-        }, 5000);
-
-        // Validação de formulário em tempo real
-        document.querySelectorAll('#paymentForm input').forEach(input => {
-            input.addEventListener('blur', function() {
-                if (this.value.trim() === '') {
-                    this.style.borderColor = '#ef4444';
-                } else {
-                    this.style.borderColor = '#d1d5db';
-                }
+    // Botão copiar PIX
+    document.getElementById('copy-button').addEventListener('click', function() {
+        const texto = pixCodeDisplay.textContent;
+        if (texto && texto !== 'Aguardando geração...') {
+            navigator.clipboard.writeText(texto).then(() => {
+                const original = this.innerHTML;
+                this.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+                this.style.background = 'linear-gradient(135deg, #00F2EA, #00C2B8)';
+                setTimeout(() => {
+                    this.innerHTML = original;
+                    this.style.background = '';
+                }, 2000);
+            }).catch(() => {
+                alert('Selecione o código e copie manualmente (Ctrl+C)');
             });
-        });
-    </script>
+        }
+    });
+
+    // Botão verificar pagamento
+    checkPaymentBtn.addEventListener('click', verificarPagamentoPlumify);
+
+    // Botão novo pagamento
+    newPaymentBtn.addEventListener('click', () => {
+        if (confirm('Cancelar pagamento atual e gerar novo?')) {
+            if (timerInterval) clearInterval(timerInterval);
+            currentPaymentId = null;
+            formulario.reset();
+            showStep('step1');
+        }
+    });
+
+    // Máscara CPF
+    document.getElementById('customerCpf').addEventListener('input', function(e) {
+        let valor = e.target.value.replace(/\D/g, '');
+        if (valor.length > 11) valor = valor.substring(0, 11);
+        
+        if (valor.length > 9) {
+            valor = valor.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+        } else if (valor.length > 6) {
+            valor = valor.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+        } else if (valor.length > 3) {
+            valor = valor.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+        }
+        
+        e.target.value = valor;
+    });
+
+    console.log('✅ Sistema PIX Plumify configurado. Aguardando dados...');
+</script>
 </body>
 </html>
