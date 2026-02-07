@@ -249,3 +249,130 @@ app.listen(PORT, () => {
     =================================
     `);
 });
+// ==================== ADMIN SYSTEM (APENAS ADICIONE ISSO NO FINAL) ====================
+
+// Importar o sistema admin separado
+const adminSystem = require('./admin-system');
+
+// Rota para o painel admin (NOME DIFERENTE!)
+app.get('/painel-admin.html', (req, res) => {
+    res.sendFile(__dirname + '/painel-admin.html');
+});
+
+// Rota para login do admin (NOME DIFERENTE!)
+app.get('/entrar-admin.html', (req, res) => {
+    res.sendFile(__dirname + '/entrar-admin.html');
+});
+
+// API Login do Admin
+app.post('/api/admin-system/login', (req, res) => {
+    const { username, password } = req.body;
+    
+    console.log('🔐 Login admin tentado:', username);
+    
+    if (adminSystem.validateLogin(username, password)) {
+        res.json({
+            success: true,
+            message: 'Login realizado!',
+            token: adminSystem.ADMIN_CONFIG.secret,
+            user: {
+                username: username,
+                role: 'admin'
+            }
+        });
+    } else {
+        res.status(401).json({
+            success: false,
+            error: 'Credenciais inválidas'
+        });
+    }
+});
+
+// API Dashboard do Admin
+app.get('/api/admin-system/dashboard', (req, res) => {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!adminSystem.validateToken(token)) {
+        return res.status(401).json({ error: 'Não autorizado' });
+    }
+    
+    const stats = adminSystem.getStats();
+    const recentPayments = adminSystem.getRecentPayments(10);
+    
+    res.json({
+        success: true,
+        data: {
+            stats: stats,
+            recentPayments: recentPayments,
+            serverInfo: {
+                url: 'https://pagamento-cgzk.onrender.com',
+                status: 'online',
+                timestamp: new Date().toISOString()
+            }
+        }
+    });
+});
+
+// API para listar pagamentos
+app.get('/api/admin-system/payments', (req, res) => {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!adminSystem.validateToken(token)) {
+        return res.status(401).json({ error: 'Não autorizado' });
+    }
+    
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const status = req.query.status || 'all';
+    
+    // Simulação de paginação
+    const db = adminSystem.getDatabase();
+    let payments = db.payments;
+    
+    if (status !== 'all') {
+        payments = payments.filter(p => p.status === status);
+    }
+    
+    payments = payments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    const start = (page - 1) * limit;
+    const paginated = payments.slice(start, start + limit);
+    
+    res.json({
+        success: true,
+        payments: paginated,
+        pagination: {
+            page: page,
+            limit: limit,
+            total: payments.length,
+            pages: Math.ceil(payments.length / limit)
+        }
+    });
+});
+
+// NO FINAL da rota /api/pix/create, ANTES do res.json(), adicione:
+app.post('/api/pix/create', async (req, res) => {
+    // ... seu código atual ...
+    
+    // DEPOIS de gerar o PIX na Plumify, ANTES de responder:
+    
+    // Capturar dados para o admin
+    const paymentData = {
+        id: result.transaction.id || `PIX_${Date.now()}`,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        customerCpf: cpfClean,
+        amount: 21.67,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        pixCode: result.transaction.pix_code || '',
+        pixUrl: result.transaction.pix_url || ''
+    };
+    
+    // Registrar no sistema admin (não bloqueia a resposta)
+    setTimeout(() => {
+        adminSystem.addPayment(paymentData);
+    }, 100);
+    
+    // ... continue com res.json(result) ...
+});
