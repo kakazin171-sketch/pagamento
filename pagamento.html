@@ -833,7 +833,8 @@
                     alert('Gere um código PIX primeiro!');
                     return;
                 }
-                
+                const API_BASE_URL = window.location.origin; // Isso pega automaticamente https://pagamento-cgzk.onrender.com
+                const CREATE_PIX_URL = API_BASE_URL + '/api/pix/create';
                 const texto = pixCode.textContent;
                 
                 // Tentar método moderno
@@ -1018,7 +1019,8 @@
             }
         });
     }
-
+    
+     
     // ============================================
     // INICIALIZAÇÃO QUANDO A PÁGINA CARREGAR
     // ============================================

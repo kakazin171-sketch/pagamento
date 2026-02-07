@@ -5,10 +5,10 @@ const PORT = process.env.PORT || 3000;
 
 // ⚠️ CONFIGURAÇÃO REAL DA PLUMIFY (SUAS CHAVES)
 const PLUMIFY_CONFIG = {
-    token: '0RRWtMOuHsAQlR7S0zEnlGBnLEnr8DgoDJS3GTecxH7nZr2X01kHo6rxrOGa', // SEU TOKEN REAL
-    accountId: '9kajnnbn2c', // SEU ACCOUNT ID
+    token: '0RRWtMOuHsAQlR7S0zEnlGBnLEnr8DgoDJS3GTecxH7nZr2X01kHo6rxrOGa',
+    accountId: '9kajnnbn2c',
     baseURL: 'https://api.plumify.com.br/api/public/v1',
-    productHash: 'flnqw8vjsf' // SEU PRODUCT HASH
+    productHash: 'flnqw8vjsf'
 };
 
 // MIDDLEWARES ESSENCIAIS
@@ -35,9 +35,14 @@ app.get('/health', (req, res) => {
     });
 });
 
-// ROTA PRINCIPAL
+// ROTA PRINCIPAL - REDIRECIONA PARA PAGAMENTO
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html');
+    res.redirect('/pagamento');
+});
+
+// ROTA DO PAGAMENTO - PÁGINA PRINCIPAL
+app.get('/pagamento', (req, res) => {
+    res.sendFile(__dirname + '/pagamento.html');
 });
 
 // TESTE DA API
@@ -81,7 +86,7 @@ app.post('/api/pix/create', async (req, res) => {
             customer: {
                 name: customerName.trim(),
                 email: customerEmail.trim(),
-                phone_number: "61995512071", // Pode ajustar
+                phone_number: "61995512071",
                 document: cpfClean,
                 zip_code: "00000000",
                 street_name: "Rua",
@@ -109,7 +114,6 @@ app.post('/api/pix/create', async (req, res) => {
         };
         
         console.log('📤 Enviando para Plumify...');
-        console.log('Payload:', JSON.stringify(payload, null, 2));
         
         // CHAMADA REAL PARA API PLUMIFY
         const response = await axios.post(
@@ -120,12 +124,11 @@ app.post('/api/pix/create', async (req, res) => {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                timeout: 30000 // 30 segundos timeout
+                timeout: 30000
             }
         );
         
         console.log('✅ Resposta Plumify - Status:', response.status);
-        console.log('Dados:', JSON.stringify(response.data, null, 2));
         
         // PROCESSAMENTO DA RESPOSTA
         const data = response.data;
@@ -162,37 +165,28 @@ app.post('/api/pix/create', async (req, res) => {
                 `https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=png&data=${encodeURIComponent(result.transaction.pix_code)}`;
         }
         
-        console.log('🎯 Resposta final para frontend:', JSON.stringify(result, null, 2));
+        console.log('🎯 PIX gerado com sucesso!');
         
         res.json(result);
         
     } catch (error) {
         console.error('❌ ERRO CRÍTICO NO PIX:');
         console.error('Mensagem:', error.message);
-        console.error('Código:', error.code);
-        console.error('Resposta:', error.response?.data);
-        console.error('Status:', error.response?.status);
         
         // RESPOSTA DE ERRO DETALHADA
         let errorMessage = 'Erro ao gerar PIX';
-        let errorDetails = null;
         
         if (error.response) {
-            // ERRO DA API PLUMIFY
             errorMessage = error.response.data?.message || error.response.data?.error || `Erro ${error.response.status}`;
-            errorDetails = error.response.data;
         } else if (error.request) {
-            // SEM RESPOSTA (TIMEOUT, NETWORK ERROR)
             errorMessage = 'Sem resposta do servidor de pagamento. Verifique sua conexão.';
         } else {
-            // ERRO DE CONFIGURAÇÃO
             errorMessage = error.message;
         }
         
         res.status(error.response?.status || 500).json({
             success: false,
             error: errorMessage,
-            details: errorDetails,
             suggestion: 'Tente novamente em alguns instantes.'
         });
     }
@@ -224,24 +218,20 @@ app.get('/api/pix/status/:id', async (req, res) => {
     }
 });
 
-// ROTA PARA CHECKOUT
-app.get('/checkout/pagamento', (req, res) => {
-    res.sendFile(__dirname + '/checkout/pagamento.html');
-});
-
-// ROTA PARA WEBHOOK (OPCIONAL)
+// ROTA PARA WEBHOOK
 app.post('/webhook/plumify', (req, res) => {
     console.log('📩 Webhook recebido:', req.body);
     res.json({ received: true });
 });
 
-// MANUSEIO DE ERROS GLOBAIS
-app.use((err, req, res, next) => {
-    console.error('🔥 Erro global:', err);
-    res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor',
-        requestId: Date.now()
+// ROTA PARA TODAS AS OUTRAS REQUESTS - SERVIR ARQUIVOS ESTÁTICOS
+app.get('*', (req, res) => {
+    // Tenta servir arquivos estáticos primeiro
+    res.sendFile(__dirname + req.path, (err) => {
+        if (err) {
+            // Se arquivo não encontrado, redireciona para página principal
+            res.redirect('/pagamento');
+        }
     });
 });
 
@@ -252,35 +242,10 @@ app.listen(PORT, () => {
     =================================
     ✅ Servidor iniciado na porta: ${PORT}
     🌐 URL: https://pagamento-cgzk.onrender.com
+    💰 Página principal: /pagamento
     📊 Health: /health
-    💰 PIX: /api/pix/create
-    📁 Static: ${__dirname}
+    💰 API PIX: /api/pix/create
     🕐 ${new Date().toISOString()}
     =================================
     `);
-
-require('dotenv').config();
-const express = require('express');
-const axios = require('axios');
-
-const app = express();
-app.use(express.json());
-
-// 🧾 CRIAR PIX (checkout)
-app.post('/api/pix/create', async (req, res) => {
-  // seu código de criar pix
-  res.json({ ok: true });
-});
-
-// 🔔 WEBHOOK (Plumify chama sozinho)
-app.post('/webhook/plumify', (req, res) => {
-  console.log('📩 PAGAMENTO RECEBIDO');
-  console.log(req.body);
-
-  res.sendStatus(200);
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log('🚀 Servidor rodando na porta', PORT);
 });
