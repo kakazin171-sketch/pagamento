@@ -1,5 +1,5 @@
 {
-  "name": "api-tiktok-pix",
+  "name": "tiktok-pix-producao",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
@@ -11,6 +11,6 @@
     "axios": "^1.6.2"
   },
   "engines": {
-    "node": "18.x"
+    "node": ">=18.0.0"
   }
 }
