@@ -567,281 +567,59 @@
     </div>
 
     <script>
-   
-        const API_URL = 'http://localhost:3000/api';
-        let currentTransaction = null;
-        let checkInterval = null;
-        let timerInterval = null;
-        let timeLeft = 1800; 
-        let currentSlide = 0;
-        const totalSlides = 4;
-        
-      
-        function formatCPF(cpf) {
-            cpf = cpf.replace(/\D/g, '');
-            if (cpf.length > 11) cpf = cpf.substring(0, 11);
-            return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-        }
-        
-   
-        function updateCarousel() {
-            const track = document.getElementById('carouselTrack');
-            const dots = document.querySelectorAll('.carousel-dot');
-            
-            track.style.transform = `translateX(-${currentSlide * 100}%)`;
-            
-            dots.forEach((dot, index) => {
-                dot.classList.toggle('active', index === currentSlide);
-            });
-        }
-        
-        function moveCarousel(direction) {
-            currentSlide = (currentSlide + direction + totalSlides) % totalSlides;
-            updateCarousel();
-        }
-        
-        function goToSlide(index) {
-            currentSlide = index;
-            updateCarousel();
-        }
-        
-        // Timer
-        function updateTimer() {
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
-            document.getElementById('timeLeft').textContent = 
-                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            
-            const progress = (timeLeft / 1800) * 100;
-            document.getElementById('progress').style.width = `${progress}%`;
-            
-            if (timeLeft <= 0) {
-                clearInterval(timerInterval);
-                document.getElementById('paymentStatus').innerHTML = 
-                    '<i class="fas fa-clock"></i> Código expirado';
-                document.getElementById('paymentStatus').className = 'status status-pending';
-            }
-        }
-        
-        function startTimer() {
-            timeLeft = 1800;
-            updateTimer();
-            
-            if (timerInterval) clearInterval(timerInterval);
-            
-            timerInterval = setInterval(() => {
-                timeLeft--;
-                updateTimer();
-            }, 1000);
-        }
-        
-   
-        async function generatePix(event) {
-            event.preventDefault();
-            
-            const name = document.getElementById('customerName').value.trim();
-            const email = document.getElementById('customerEmail').value.trim();
-            const cpf = document.getElementById('customerCpf').value;
-            
-            if (!name || !email || !cpf) {
-                alert('Preencha todos os campos');
-                return;
-            }
-            
-            const cpfClean = cpf.replace(/\D/g, '');
-            if (cpfClean.length !== 11) {
-                alert('CPF inválido (11 dígitos)');
-                return;
-            }
-            
-          
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(email)) {
-                alert('Digite um e-mail válido');
-                return;
-            }
-            
-          
-            document.getElementById('step1').classList.remove('active');
-            document.getElementById('loading').classList.add('active');
-            
-            try {
-              
-                const response = await fetch(`${API_URL}/pix/create`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        customerName: name,
-                        customerEmail: email,
-                        customerCpf: cpfClean
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (!result.success) {
-                    throw new Error(result.error || 'Erro ao gerar PIX');
-                }
-                
-               
-                setTimeout(() => {
-                    document.getElementById('loading').classList.remove('active');
-                    document.getElementById('pixPayment').classList.add('active');
-                    
-                   
-                    const transactionId = result.transaction.id || 'TKTK' + Date.now().toString().slice(-6);
-                    document.getElementById('orderId').textContent = `#${transactionId}`;
-                    document.getElementById('pixCode').textContent = result.transaction.pix_code || 
-                        `00020126360014BR.GOV.BCB.PIX0114+55619999999990221Taxa TikTok Pay5204000053039865802BR5925${name.substring(0, 25)}6009SAO PAULO62290527${transactionId}6304A1B2`;
-                    
-                   if (result.transaction.pix_url) {
-                        document.getElementById('qrCodeContainer').innerHTML = 
-                            `<img src="${result.transaction.pix_url}" alt="QR Code PIX" style="width: 100%; height: 100%;">`;
-                    } else {
-                      
-                        const pixData = result.transaction.pix_code || 
-                            `00020126360014BR.GOV.BCB.PIX0114+55619999999990221Taxa TikTok Pay5204000053039865802BR5925${name.substring(0, 25)}6009SAO PAULO62290527${transactionId}6304A1B2`;
-                        document.getElementById('qrCodeContainer').innerHTML = 
-                            `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixData)}&format=png" 
-                                 alt="QR Code PIX" style="width: 100%; height: 100%;">`;
-                    }
-                    
-                   
-                    currentTransaction = {
-                        id: transactionId,
-                        status: 'pending',
-                        ...result.transaction
-                    };
-                    
-                    
-                    startTimer();
-                    
-                   
-                    startPaymentVerification();
+  const form = document.getElementById('paymentForm');
+  const resultDiv = document.getElementById('resultado');
 
-                    
-                }, 1000);
-                
-            } catch (error) {
-                console.error('Erro ao gerar PIX:', error);
-                
-                
-                setTimeout(() => {
-                    document.getElementById('loading').classList.remove('active');
-                    document.getElementById('pixPayment').classList.add('active');
-                    
-                   
-                    const transactionId = 'TKTK' + Date.now().toString().slice(-6);
-                    const name = document.getElementById('customerName').value.trim();
-                    
-                    document.getElementById('orderId').textContent = `#${transactionId}`;
-                    document.getElementById('pixCode').textContent = 
-                        `00020126360014BR.GOV.BCB.PIX0114+55619999999990221Taxa TikTok Pay5204000053039865802BR5925${name.substring(0, 25)}6009SAO PAULO62290527${transactionId}6304A1B2`;
-                    
-                    
-                    const qrData = `00020126360014BR.GOV.BCB.PIX0114+55619999999990221Taxa TikTok Pay5204000053039865802BR5925${name.substring(0, 25)}6009SAO PAULO62290527${transactionId}6304A1B2`;
-                    document.getElementById('qrCodeContainer').innerHTML = 
-                        `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}&format=png" 
-                             alt="QR Code PIX" style="width: 100%; height: 100%;">`;
-                    
-                    currentTransaction = {
-                        id: transactionId,
-                        status: 'pending'
-                    };
-                    
-                    
-                    startTimer();
-                    
-                    
-                    startPaymentVerification();
-                    
-                }, 1000);
-            }
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    resultDiv.innerHTML = 'Gerando PIX... ⏳';
+
+    const nome = document.getElementById('nome').value;
+    const email = document.getElementById('email').value;
+    const cpf = document.getElementById('cpf').value;
+
+    try {
+      const response = await fetch('/api/pix/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          customerName: nome,
+          customerEmail: email,
+          customerCpf: cpf
+        })
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        resultDiv.innerHTML = 'Erro ao gerar PIX ❌';
+        return;
+      }
+
+      const pix = data.pix;
+
+      resultDiv.innerHTML = `
+        <h3>PIX gerado com sucesso ✅</h3>
+
+        <p><strong>Valor:</strong> R$ ${(pix.amount / 100).toFixed(2)}</p>
+
+        ${pix.qrcode_image
+          ? `<img src="${pix.qrcode_image}" width="250" />`
+          : ''
         }
-        
-        
-        function startPaymentVerification() {
-            if (checkInterval) clearInterval(checkInterval);
-            
-            checkInterval = setInterval(async () => {
-                if (!currentTransaction) return;
-                
-                try {
-                    
-                    const response = await fetch(`${API_URL}/pix/check`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            transactionId: currentTransaction.id
-                        })
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (result.success && result.status === 'paid') {
-                        paymentConfirmed();
-                    }
-                } catch (error) {
-                    
-                    if (Math.random() < 0.2) {
-                        paymentConfirmed();
-                    }
-                }
-            }, 3000);
-        }
-        
-       
-        function resetForm() {
-            document.getElementById('step1').classList.add('active');
-            document.getElementById('pixPayment').classList.remove('active');
-            document.getElementById('loading').classList.remove('active');
-            document.getElementById('paymentForm').reset();
-            
-            if (checkInterval) {
-                clearInterval(checkInterval);
-                checkInterval = null;
-            }
-            
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-            }
-            
-            currentTransaction = null;
-            timeLeft = 1800;
-        }
-        
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            
-            const cpfInput = document.getElementById('customerCpf');
-            cpfInput.addEventListener('input', function() {
-                this.value = formatCPF(this.value);
-            });
-            
-            
-            document.getElementById('paymentForm').addEventListener('submit', generatePix);
-            
-           
-            document.getElementById('copy-button').addEventListener('click', copyPixCode);
-            document.getElementById('checkPaymentBtn').addEventListener('click', checkPayment);
-            document.getElementById('newPaymentBtn').addEventListener('click', resetForm);
-            
-           
-            updateCarousel();
-            setInterval(() => moveCarousel(1), 5000);
-            
-           
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                document.getElementById('customerName').value = 'Maria Silva';
-                document.getElementById('customerEmail').value = 'maria@email.com';
-                document.getElementById('customerCpf').value = '123.456.789-09';
-            }
-        });
-    </script>
+
+        <p><strong>Copia e Cola:</strong></p>
+        <textarea rows="4" style="width:100%">${pix.qrcode}</textarea>
+      `;
+
+    } catch (error) {
+      resultDiv.innerHTML = 'Erro de conexão ❌';
+      console.error(error);
+    }
+  });
+</script>
 </body>
 </html>
