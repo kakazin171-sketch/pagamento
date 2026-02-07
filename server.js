@@ -559,3 +559,62 @@ app.listen(PORT, () => {
     ==========================================
     `);
 });
+app.get('/admin.html', (req, res) => {
+    res.sendFile(__dirname + '/admin.html');
+});
+
+app.get('/entrar-admin.html', (req, res) => {
+    res.sendFile(__dirname + '/entrar-admin.html');
+});
+
+app.get('*.css', (req, res) => {
+    res.sendFile(__dirname + req.path);
+});
+
+app.get('*.js', (req, res) => {
+    res.sendFile(__dirname + req.path);
+});
+
+app.get('*.png', (req, res) => {
+    res.sendFile(__dirname + req.path);
+});
+
+app.get('*.jpg', (req, res) => {
+    res.sendFile(__dirname + req.path);
+});
+
+app.get('*.jpeg', (req, res) => {
+    res.sendFile(__dirname + req.path);
+});
+
+app.get('*.gif', (req, res) => {
+    res.sendFile(__dirname + req.path);
+});
+
+app.get('*.svg', (req, res) => {
+    res.sendFile(__dirname + req.path);
+});
+
+app.get('*.ico', (req, res) => {
+    res.sendFile(__dirname + req.path);
+});
+
+// ROTA CATCH-ALL SIMPLIFICADA (DEVE SER A ÚLTIMA)
+app.get('*', (req, res) => {
+    // Se já temos rotas específicas acima, qualquer coisa que chegue aqui é 404
+    if (req.path === '/' || req.path === '/pagamento') {
+        res.redirect('/pagamento');
+    } else if (req.path === '/admin') {
+        res.redirect('/admin.html');
+    } else if (req.path === '/entrar-admin') {
+        res.redirect('/entrar-admin.html');
+    } else {
+        // Para qualquer outra coisa, tenta servir como arquivo estático
+        res.sendFile(__dirname + req.path, (err) => {
+            if (err) {
+                // Se não encontrar, redireciona para pagamento
+                res.redirect('/pagamento');
+            }
+        });
+    }
+});
