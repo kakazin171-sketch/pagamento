@@ -258,4 +258,29 @@ app.listen(PORT, () => {
     🕐 ${new Date().toISOString()}
     =================================
     `);
+
+require('dotenv').config();
+const express = require('express');
+const axios = require('axios');
+
+const app = express();
+app.use(express.json());
+
+// 🧾 CRIAR PIX (checkout)
+app.post('/api/pix/create', async (req, res) => {
+  // seu código de criar pix
+  res.json({ ok: true });
+});
+
+// 🔔 WEBHOOK (Plumify chama sozinho)
+app.post('/webhook/plumify', (req, res) => {
+  console.log('📩 PAGAMENTO RECEBIDO');
+  console.log(req.body);
+
+  res.sendStatus(200);
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log('🚀 Servidor rodando na porta', PORT);
 });
