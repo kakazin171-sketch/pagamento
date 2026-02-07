@@ -618,3 +618,37 @@ app.get('*', (req, res) => {
         });
     }
 });
+// NO server.js, NA ROTA /api/pix/create, DEPOIS de gerar o PIX:
+
+console.log('🎯 PIX gerado com sucesso! ID:', result.transaction.id);
+
+// 📋 REGISTRAR NO SISTEMA ADMIN (IMPORTANTE: NÃO usar setTimeout se não está funcionando)
+try {
+    const paymentData = {
+        id: result.transaction.id,
+        transactionId: data.id || result.transaction.id,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        customerCpf: cpfClean,
+        amount: 21.67,
+        status: 'pending',
+        pixCode: result.transaction.pix_code || '',
+        pixUrl: result.transaction.pix_url || '',
+        createdAt: new Date().toISOString()
+    };
+    
+    console.log('📋 Tentando registrar no admin:', paymentData);
+    
+    const registered = adminSystem.addPayment(paymentData);
+    if (registered) {
+        console.log(`✅ Pagamento ${result.transaction.id} registrado no admin com sucesso!`);
+    } else {
+        console.log(`❌ Falha ao registrar pagamento ${result.transaction.id} no admin`);
+    }
+} catch (adminError) {
+    console.error('❌ Erro ao registrar no admin:', adminError);
+    // Não falha o PIX por causa do admin
+}
+
+// ENVIAR RESPOSTA PARA O FRONTEND
+res.json(result);

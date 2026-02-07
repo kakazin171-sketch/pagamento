@@ -1,20 +1,17 @@
-
-// ==================== SISTEMA ADMIN PARA TIKTOK PIX ====================
-// Sistema independente para gerenciar pedidos e acessos admin
-
 const fs = require('fs');
 const path = require('path');
 
 const ADMIN_CONFIG = {
     username: 'tiktok_admin',
     password: 'Admin@TikTok2024!',
-    secret: 'tiktok_admin_token_secreto_' + Date.now()
+    secret: 'tiktok_admin_token_secreto'
 };
 
 class AdminSystem {
     constructor() {
         this.dbPath = path.join(__dirname, 'admin-database.json');
         this.initDatabase();
+        console.log('✅ AdminSystem inicializado. DB path:', this.dbPath);
     }
 
     // Inicializar banco de dados
@@ -32,7 +29,9 @@ class AdminSystem {
                 lastUpdate: new Date().toISOString()
             };
             fs.writeFileSync(this.dbPath, JSON.stringify(initialData, null, 2));
-            console.log('✅ Banco de dados admin inicializado');
+            console.log('✅ Banco de dados admin criado:', this.dbPath);
+        } else {
+            console.log('📁 Banco de dados já existe:', this.dbPath);
         }
     }
 
@@ -42,7 +41,7 @@ class AdminSystem {
             const data = fs.readFileSync(this.dbPath, 'utf8');
             return JSON.parse(data);
         } catch (error) {
-            console.error('❌ Erro ao carregar banco de dados:', error);
+            console.error('❌ Erro ao carregar banco de dados:', error.message);
             return { payments: [], users: [], settings: {}, lastUpdate: new Date().toISOString() };
         }
     }
@@ -54,7 +53,7 @@ class AdminSystem {
             fs.writeFileSync(this.dbPath, JSON.stringify(data, null, 2));
             return true;
         } catch (error) {
-            console.error('❌ Erro ao salvar banco de dados:', error);
+            console.error('❌ Erro ao salvar banco de dados:', error.message);
             return false;
         }
     }
@@ -69,13 +68,15 @@ class AdminSystem {
     // Validar token
     validateToken(token) {
         const isValid = token === ADMIN_CONFIG.secret;
-        if (!isValid) console.log('❌ Token inválido:', token?.substring(0, 10) + '...');
+        if (!isValid) console.log('❌ Token inválido');
         return isValid;
     }
 
-    // Adicionar pagamento (chamado pela rota PIX)
+    // Adicionar pagamento
     addPayment(paymentData) {
         try {
+            console.log('📋 Tentando registrar pagamento:', paymentData.id);
+            
             const db = this.loadDatabase();
             
             const payment = {
@@ -94,6 +95,8 @@ class AdminSystem {
                 notes: paymentData.notes || ''
             };
 
+            console.log('📝 Pagamento a ser salvo:', payment);
+            
             db.payments.unshift(payment);
             
             // Manter apenas os últimos 1000 pagamentos
@@ -101,10 +104,16 @@ class AdminSystem {
                 db.payments = db.payments.slice(0, 1000);
             }
 
-            this.saveDatabase(db);
-            console.log(`✅ Pagamento registrado no admin: ${payment.id} - ${payment.customerName}`);
+            const saved = this.saveDatabase(db);
             
-            return payment;
+            if (saved) {
+                console.log(`✅ Pagamento ${payment.id} registrado no admin para ${payment.customerName}`);
+                return payment;
+            } else {
+                console.log(`❌ Falha ao salvar pagamento ${payment.id}`);
+                return null;
+            }
+            
         } catch (error) {
             console.error('❌ Erro ao adicionar pagamento:', error);
             return null;
@@ -162,6 +171,8 @@ class AdminSystem {
         const db = this.loadDatabase();
         const payments = db.payments;
 
+        console.log(`📊 Total de pagamentos no banco: ${payments.length}`);
+
         const totalRevenue = payments
             .filter(p => p.status === 'paid')
             .reduce((sum, p) => sum + (p.amount || 0), 0);
@@ -169,14 +180,6 @@ class AdminSystem {
         const totalPayments = payments.filter(p => p.status === 'paid').length;
         const pendingPayments = payments.filter(p => p.status === 'pending').length;
         const failedPayments = payments.filter(p => p.status === 'failed').length;
-
-        // Calcular crescimento dos últimos 7 dias
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-        const recentPayments = payments.filter(p => 
-            new Date(p.createdAt) >= sevenDaysAgo
-        );
 
         // Gerar dados para gráfico (últimos 7 dias)
         const chartData = {
@@ -213,7 +216,7 @@ class AdminSystem {
     // Obter pagamentos recentes
     getRecentPayments(limit = 10) {
         const db = this.loadDatabase();
-        return db.payments
+        const recent = db.payments
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
             .slice(0, limit)
             .map(p => ({
@@ -227,6 +230,9 @@ class AdminSystem {
                 paid_at: p.paidAt,
                 pix_code: p.pixCode ? `${p.pixCode.substring(0, 20)}...` : ''
             }));
+        
+        console.log(`📋 Retornando ${recent.length} pagamentos recentes`);
+        return recent;
     }
 
     // Obter todos os pagamentos com filtros
@@ -260,6 +266,8 @@ class AdminSystem {
                 pix_url: p.pixUrl
             }));
 
+        console.log(`📄 Paginação: página ${page}, total ${total}, mostrando ${paginated.length}`);
+        
         return {
             payments: paginated,
             pagination: {
@@ -294,4 +302,3 @@ class AdminSystem {
 const adminSystem = new AdminSystem();
 
 module.exports = adminSystem;
-[file content end]
