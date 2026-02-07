@@ -1,6 +1,5 @@
 const express = require('express');
 const axios = require('axios');
-const adminSystem = require('./admin-system');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -29,11 +28,10 @@ app.use((req, res, next) => {
 app.get('/health', (req, res) => {
     res.json({
         status: 'online',
-        service: 'TikTok PIX API + Admin',
+        service: 'TikTok PIX API',
         environment: process.env.NODE_ENV || 'production',
         timestamp: new Date().toISOString(),
-        version: '1.0.0',
-        admin: 'active'
+        version: '1.0.0'
     });
 });
 
@@ -47,16 +45,6 @@ app.get('/pagamento', (req, res) => {
     res.sendFile(__dirname + '/pagamento.html');
 });
 
-// ROTA DO PAINEL ADMIN
-app.get('/admin.html', (req, res) => {
-    res.sendFile(__dirname + '/admin.html');
-});
-
-// ROTA DO LOGIN ADMIN
-app.get('/entrar-admin.html', (req, res) => {
-    res.sendFile(__dirname + '/entrar-admin.html');
-});
-
 // TESTE DA API
 app.get('/api/test', (req, res) => {
     res.json({
@@ -65,7 +53,6 @@ app.get('/api/test', (req, res) => {
         server: 'Render',
         url: 'https://pagamento-cgzk.onrender.com',
         plumify: 'Conectado',
-        admin: 'Ativo',
         timestamp: new Date().toISOString()
     });
 });
@@ -156,38 +143,7 @@ app.post('/api/pix/create', async (req, res) => {
             });
         }
         
-        console.log('🎯 PIX gerado com sucesso! ID:', result.transaction.id);
-
-// 📊 REGISTRAR COM DETALHES COMPLETOS
-try {
-    const paymentData = {
-        id: result.transaction.id,
-        transactionId: data.id || result.transaction.id,
-        customerName: customerName.trim(),
-        customerEmail: customerEmail.trim(),
-        customerCpf: cpfClean,
-        amount: 21.67,
-        status: 'pending',
-        pixCode: result.transaction.pix_code || '',
-        pixUrl: result.transaction.pix_url || '',
-        createdAt: new Date().toISOString(),
-        sessionId: req.headers['x-session-id'] || req.ip,
-        userAgent: req.headers['user-agent'] || '',
-        ip: req.ip || req.connection.remoteAddress
-    };
-    
-    // Registrar no sistema
-    const registered = adminSystem.addPayment(paymentData);
-    
-    if (registered) {
-        console.log('✅ LOG: PIX registrado com sucesso!');
-    }
-    
-} catch (error) {
-    console.error('❌ Erro no registro:', error);
-}
-
-res.json(result);
+        // FORMATA RESPOSTA PARA FRONTEND
         const result = {
             success: true,
             message: 'PIX gerado com sucesso!',
@@ -209,35 +165,8 @@ res.json(result);
                 `https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=png&data=${encodeURIComponent(result.transaction.pix_code)}`;
         }
         
-        console.log('🎯 PIX gerado com sucesso! ID:', result.transaction.id);
+        console.log('🎯 PIX gerado com sucesso!');
         
-        // 📋 REGISTRAR NO SISTEMA ADMIN (ASSÍNCRONO - NÃO BLOQUEIA)
-        setTimeout(async () => {
-            try {
-                const paymentData = {
-                    id: result.transaction.id,
-                    transactionId: data.id || result.transaction.id,
-                    customerName: customerName.trim(),
-                    customerEmail: customerEmail.trim(),
-                    customerCpf: cpfClean,
-                    amount: 21.67,
-                    status: 'pending',
-                    pixCode: result.transaction.pix_code || '',
-                    pixUrl: result.transaction.pix_url || '',
-                    createdAt: new Date().toISOString()
-                };
-                
-                const registered = adminSystem.addPayment(paymentData);
-                if (registered) {
-                    console.log(`✅ Pagamento ${result.transaction.id} registrado no admin`);
-                }
-            } catch (adminError) {
-                console.error('❌ Erro ao registrar no admin:', adminError);
-                // Não falha o PIX por causa do admin
-            }
-        }, 100);
-        
-        // ENVIAR RESPOSTA PARA O FRONTEND
         res.json(result);
         
     } catch (error) {
@@ -263,207 +192,7 @@ res.json(result);
     }
 });
 
-// ==================== ADMIN SYSTEM API ====================
-
-// Middleware de autenticação
-const authenticateAdmin = (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader) {
-        console.log('❌ Nenhum token fornecido');
-        return res.status(401).json({ 
-            success: false, 
-            error: 'Token de autenticação necessário' 
-        });
-    }
-    
-    const token = authHeader.replace('Bearer ', '');
-    
-    if (!adminSystem.validateToken(token)) {
-        return res.status(401).json({ 
-            success: false, 
-            error: 'Token inválido ou expirado' 
-        });
-    }
-    
-    next();
-};
-
-// API Login do Admin
-app.post('/api/admin-system/login', (req, res) => {
-    const { username, password } = req.body;
-    
-    console.log('🔐 Tentativa de login admin:', username);
-    
-    if (adminSystem.validateLogin(username, password)) {
-        res.json({
-            success: true,
-            message: 'Login realizado com sucesso!',
-            token: adminSystem.ADMIN_CONFIG.secret,
-            user: {
-                username: username,
-                role: 'admin',
-                lastLogin: new Date().toISOString()
-            }
-        });
-    } else {
-        res.status(401).json({
-            success: false,
-            error: 'Credenciais inválidas'
-        });
-    }
-});
-
-// Dashboard do admin
-app.get('/api/admin-system/dashboard', authenticateAdmin, (req, res) => {
-    try {
-        const stats = adminSystem.getStats();
-        const recentPayments = adminSystem.getRecentPayments(10);
-        
-        res.json({
-            success: true,
-            data: {
-                totalRevenue: parseFloat(stats.totalRevenue),
-                totalPayments: stats.totalPayments,
-                pendingPayments: stats.pendingPayments,
-                totalUsers: stats.totalUsers,
-                recentPayments: recentPayments,
-                chartData: stats.chartData,
-                serverInfo: {
-                    url: 'https://pagamento-cgzk.onrender.com',
-                    status: 'online',
-                    uptime: process.uptime(),
-                    timestamp: new Date().toISOString()
-                }
-            }
-        });
-    } catch (error) {
-        console.error('❌ Erro no dashboard:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Erro ao carregar dashboard'
-        });
-    }
-});
-
-// Listar todos os pagamentos
-app.get('/api/admin-system/payments', authenticateAdmin, (req, res) => {
-    try {
-        const filter = req.query.status || 'all';
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 50;
-        
-        const result = adminSystem.getAllPayments(filter, page, limit);
-        
-        res.json({
-            success: true,
-            payments: result.payments,
-            pagination: result.pagination
-        });
-    } catch (error) {
-        console.error('❌ Erro ao listar pagamentos:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Erro ao carregar pagamentos'
-        });
-    }
-});
-
-// Atualizar status do pagamento
-app.post('/api/admin-system/payments/:id/paid', authenticateAdmin, (req, res) => {
-    try {
-        const { id } = req.params;
-        
-        if (adminSystem.updatePaymentStatus(id, 'paid')) {
-            res.json({
-                success: true,
-                message: 'Pagamento marcado como pago!'
-            });
-        } else {
-            res.status(404).json({
-                success: false,
-                error: 'Pagamento não encontrado'
-            });
-        }
-    } catch (error) {
-        console.error('❌ Erro ao atualizar pagamento:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Erro ao atualizar pagamento'
-        });
-    }
-});
-
-// Excluir pagamento
-app.delete('/api/admin-system/payments/:id', authenticateAdmin, (req, res) => {
-    try {
-        const { id } = req.params;
-        
-        if (adminSystem.deletePayment(id)) {
-            res.json({
-                success: true,
-                message: 'Pagamento excluído com sucesso!'
-            });
-        } else {
-            res.status(404).json({
-                success: false,
-                error: 'Pagamento não encontrado'
-            });
-        }
-    } catch (error) {
-        console.error('❌ Erro ao excluir pagamento:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Erro ao excluir pagamento'
-        });
-    }
-});
-
-// Exportar dados
-app.get('/api/admin-system/export', authenticateAdmin, (req, res) => {
-    try {
-        const db = adminSystem.getDatabase();
-        const format = req.query.format || 'json';
-        
-        res.json({
-            success: true,
-            data: db,
-            exportedAt: new Date().toISOString(),
-            count: db.payments.length
-        });
-    } catch (error) {
-        console.error('❌ Erro ao exportar dados:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Erro ao exportar dados'
-        });
-    }
-});
-
-// Limpar dados
-app.post('/api/admin-system/clear', authenticateAdmin, (req, res) => {
-    try {
-        if (adminSystem.clearDatabase()) {
-            res.json({
-                success: true,
-                message: 'Banco de dados limpo com sucesso!'
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                error: 'Erro ao limpar banco de dados'
-            });
-        }
-    } catch (error) {
-        console.error('❌ Erro ao limpar dados:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Erro ao limpar dados'
-        });
-    }
-});
-
-// ROTA PARA VERIFICAR STATUS DO PIX (OPCIONAL)
+// ROTA PARA VERIFICAR STATUS DO PIX
 app.get('/api/pix/status/:id', async (req, res) => {
     try {
         const response = await axios.get(
@@ -489,85 +218,19 @@ app.get('/api/pix/status/:id', async (req, res) => {
     }
 });
 
-// ROTA PARA SERVIR ARQUIVOS ESTÁTICOS (ADICIONE ESTA ROTA ANTES DA CATCH-ALL)
-app.get('*.html', (req, res) => {
-    res.sendFile(__dirname + req.path, (err) => {
-        if (err) {
-            // Se arquivo não encontrado, não redireciona
-            res.status(404).send('Página não encontrada');
-        }
-    });
+// ROTA PARA WEBHOOK
+app.post('/webhook/plumify', (req, res) => {
+    console.log('📩 Webhook recebido:', req.body);
+    res.json({ received: true });
 });
 
-// ROTA PARA IMAGENS, CSS, JS (ADICIONE ESTA ROTA TAMBÉM)
-app.get('*.(png|jpg|jpeg|gif|css|js|ico|svg)', (req, res) => {
-    res.sendFile(__dirname + req.path, (err) => {
-        if (err) {
-            res.status(404).send('Arquivo não encontrado');
-        }
-    });
-});
-
-// ROTA PARA TODAS AS OUTRAS REQUESTS - APENAS PARA API (MUDE ISSO)
+// ROTA PARA TODAS AS OUTRAS REQUESTS - SERVIR ARQUIVOS ESTÁTICOS
 app.get('*', (req, res) => {
-    // Se for uma rota de API, retorna 404
-    if (req.path.startsWith('/api/')) {
-        return res.status(404).json({
-            success: false,
-            error: 'Rota da API não encontrada'
-        });
-    }
-    
-    // Para qualquer outra coisa, tenta servir como arquivo estático
+    // Tenta servir arquivos estáticos primeiro
     res.sendFile(__dirname + req.path, (err) => {
         if (err) {
-            // Se não for um arquivo, mostra 404 em vez de redirecionar
-            res.status(404).send(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>404 - Página não encontrada</title>
-                    <style>
-                        body { 
-                            font-family: Arial, sans-serif; 
-                            text-align: center; 
-                            padding: 50px; 
-                            background: #f5f5f5;
-                        }
-                        h1 { color: #ff0050; }
-                        .container { 
-                            max-width: 600px; 
-                            margin: 0 auto; 
-                            background: white; 
-                            padding: 30px; 
-                            border-radius: 10px;
-                            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                        }
-                        .links { margin-top: 20px; }
-                        .links a { 
-                            display: inline-block; 
-                            margin: 10px; 
-                            padding: 10px 20px; 
-                            background: #ff0050; 
-                            color: white; 
-                            text-decoration: none;
-                            border-radius: 5px;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <h1>404 - Página não encontrada</h1>
-                        <p>A página que você está procurando não existe.</p>
-                        <div class="links">
-                            <a href="/pagamento">Página de Pagamento</a>
-                            <a href="/entrar-admin.html">Admin Login</a>
-                            <a href="/admin.html">Painel Admin</a>
-                        </div>
-                    </div>
-                </body>
-                </html>
-            `);
+            // Se arquivo não encontrado, redireciona para página principal
+            res.redirect('/pagamento');
         }
     });
 });
@@ -575,223 +238,14 @@ app.get('*', (req, res) => {
 // INICIAR SERVIDOR
 app.listen(PORT, () => {
     console.log(`
-    🚀 TIKTOK PIX API - PRODUÇÃO COM ADMIN
-    ==========================================
+    🚀 TIKTOK PIX API - PRODUÇÃO
+    =================================
     ✅ Servidor iniciado na porta: ${PORT}
     🌐 URL: https://pagamento-cgzk.onrender.com
     💰 Página principal: /pagamento
-    👑 Admin login: /entrar-admin.html
-    👑 Admin panel: /admin.html
     📊 Health: /health
     💰 API PIX: /api/pix/create
-    🔐 Admin API: /api/admin-system/*
-    📁 Admin DB: admin-database.json
     🕐 ${new Date().toISOString()}
-    ==========================================
+    =================================
     `);
-});
-app.get('/admin.html', (req, res) => {
-    res.sendFile(__dirname + '/admin.html');
-});
-
-app.get('/entrar-admin.html', (req, res) => {
-    res.sendFile(__dirname + '/entrar-admin.html');
-});
-
-app.get('*.css', (req, res) => {
-    res.sendFile(__dirname + req.path);
-});
-
-app.get('*.js', (req, res) => {
-    res.sendFile(__dirname + req.path);
-});
-
-app.get('*.png', (req, res) => {
-    res.sendFile(__dirname + req.path);
-});
-
-app.get('*.jpg', (req, res) => {
-    res.sendFile(__dirname + req.path);
-});
-
-app.get('*.jpeg', (req, res) => {
-    res.sendFile(__dirname + req.path);
-});
-
-app.get('*.gif', (req, res) => {
-    res.sendFile(__dirname + req.path);
-});
-
-app.get('*.svg', (req, res) => {
-    res.sendFile(__dirname + req.path);
-});
-
-app.get('*.ico', (req, res) => {
-    res.sendFile(__dirname + req.path);
-});
-
-// ROTA CATCH-ALL SIMPLIFICADA (DEVE SER A ÚLTIMA)
-app.get('*', (req, res) => {
-    // Se já temos rotas específicas acima, qualquer coisa que chegue aqui é 404
-    if (req.path === '/' || req.path === '/pagamento') {
-        res.redirect('/pagamento');
-    } else if (req.path === '/admin') {
-        res.redirect('/admin.html');
-    } else if (req.path === '/entrar-admin') {
-        res.redirect('/entrar-admin.html');
-    } else {
-        // Para qualquer outra coisa, tenta servir como arquivo estático
-        res.sendFile(__dirname + req.path, (err) => {
-            if (err) {
-                // Se não encontrar, redireciona para pagamento
-                res.redirect('/pagamento');
-            }
-        });
-    }
-});
-// NO server.js, NA ROTA /api/pix/create, DEPOIS de gerar o PIX:
-
-console.log('🎯 PIX gerado com sucesso! ID:', result.transaction.id);
-
-// 📋 REGISTRAR NO SISTEMA ADMIN (IMPORTANTE: NÃO usar setTimeout se não está funcionando)
-try {
-    const paymentData = {
-        id: result.transaction.id,
-        transactionId: data.id || result.transaction.id,
-        customerName: customerName.trim(),
-        customerEmail: customerEmail.trim(),
-        customerCpf: cpfClean,
-        amount: 21.67,
-        status: 'pending',
-        pixCode: result.transaction.pix_code || '',
-        pixUrl: result.transaction.pix_url || '',
-        createdAt: new Date().toISOString()
-    };
-    
-    console.log('📋 Tentando registrar no admin:', paymentData);
-    
-    const registered = adminSystem.addPayment(paymentData);
-    if (registered) {
-        console.log(`✅ Pagamento ${result.transaction.id} registrado no admin com sucesso!`);
-    } else {
-        console.log(`❌ Falha ao registrar pagamento ${result.transaction.id} no admin`);
-    }
-} catch (adminError) {
-    console.error('❌ Erro ao registrar no admin:', adminError);
-    // Não falha o PIX por causa do admin
-}
-
-// ENVIAR RESPOSTA PARA O FRONTEND
-res.json(result);
-// ========== NOVAS ROTAS PARA LOGS AVANÇADOS ==========
-
-// Dashboard com estatísticas em tempo real
-app.get('/api/admin-system/dashboard', authenticateAdmin, (req, res) => {
-    try {
-        const stats = adminSystem.getStats();
-        const recentPayments = adminSystem.getAllPayments('all', 1, 10).payments;
-        const recentLogs = adminSystem.getLogs('all', 10);
-        const systemInfo = adminSystem.getSystemInfo();
-
-        res.json({
-            success: true,
-            data: {
-                stats: stats,
-                recentPayments: recentPayments,
-                recentLogs: recentLogs,
-                systemInfo: systemInfo,
-                timestamp: new Date().toISOString()
-            }
-        });
-    } catch (error) {
-        console.error('Erro no dashboard:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// Logs com filtros
-app.get('/api/admin-system/logs', authenticateAdmin, (req, res) => {
-    try {
-        const filter = req.query.type || 'all';
-        const limit = parseInt(req.query.limit) || 100;
-        const search = req.query.search || '';
-        
-        let logs = adminSystem.getLogs(filter, limit);
-        
-        // Busca em logs se necessário
-        if (search) {
-            const searchLower = search.toLowerCase();
-            logs = logs.filter(log => 
-                log.message.toLowerCase().includes(searchLower) ||
-                (log.data && JSON.stringify(log.data).toLowerCase().includes(searchLower))
-            );
-        }
-
-        res.json({
-            success: true,
-            logs: logs,
-            total: logs.length,
-            filter: filter
-        });
-    } catch (error) {
-        console.error('Erro nos logs:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// Busca avançada em pagamentos
-app.get('/api/admin-system/search', authenticateAdmin, (req, res) => {
-    try {
-        const query = req.query.q || '';
-        const results = adminSystem.searchPayments(query);
-        
-        res.json({
-            success: true,
-            results: results,
-            count: results.length
-        });
-    } catch (error) {
-        console.error('Erro na busca:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// Informações do sistema
-app.get('/api/admin-system/info', authenticateAdmin, (req, res) => {
-    try {
-        const info = adminSystem.getSystemInfo();
-        
-        res.json({
-            success: true,
-            info: info,
-            server: {
-                name: 'TikTok PIX Admin',
-                version: '2.0.0',
-                environment: process.env.NODE_ENV || 'production',
-                uptime: process.uptime(),
-                nodeVersion: process.version
-            }
-        });
-    } catch (error) {
-        console.error('Erro nas informações:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// Exportar dados
-app.get('/api/admin-system/export', authenticateAdmin, (req, res) => {
-    try {
-        const data = adminSystem.exportData();
-        
-        res.json({
-            success: true,
-            data: data,
-            exportedAt: new Date().toISOString(),
-            format: 'json',
-            filename: `tiktok-pix-backup-${new Date().toISOString().split('T')[0]}.json`
-        });
-    } catch (error) {
-        console.error('Erro na exportação:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
 });
