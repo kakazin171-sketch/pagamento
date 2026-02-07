@@ -1,244 +1,234 @@
-const fs = require('fs');
-const path = require('path');
-
 const ADMIN_CONFIG = {
     username: 'tiktok_admin',
     password: 'Admin@TikTok2024!',
-    secret: 'tiktok_admin_token_secreto'
+    secret: 'tiktok_admin_token_secreto_' + Date.now()
 };
 
 class AdminSystem {
     constructor() {
-        this.dbPath = path.join(__dirname, 'admin-database.json');
-        this.initDatabase();
-        console.log('✅ AdminSystem inicializado. DB path:', this.dbPath);
+        // Banco de dados em memória com persistência simples
+        this.database = {
+            payments: [],
+            logs: [],
+            statistics: {
+                totalRevenue: 0,
+                todayRevenue: 0,
+                totalPayments: 0,
+                todayPayments: 0,
+                pendingPayments: 0,
+                uniqueCustomers: new Set()
+            },
+            lastUpdate: new Date().toISOString()
+        };
+        
+        console.log('🚀 Sistema Admin Inicializado - Logs em Tempo Real');
+        this.addLog('system', 'Sistema admin inicializado');
     }
 
-    // Inicializar banco de dados
-    initDatabase() {
-        if (!fs.existsSync(this.dbPath)) {
-            const initialData = {
-                payments: [],
-                users: [],
-                settings: {
-                    apiToken: '',
-                    accountId: '',
-                    smtpServer: '',
-                    notificationEmail: ''
-                },
-                lastUpdate: new Date().toISOString()
-            };
-            fs.writeFileSync(this.dbPath, JSON.stringify(initialData, null, 2));
-            console.log('✅ Banco de dados admin criado:', this.dbPath);
-        } else {
-            console.log('📁 Banco de dados já existe:', this.dbPath);
+    // ========== SISTEMA DE LOGS ==========
+    addLog(type, message, data = null) {
+        const log = {
+            id: `LOG_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            type: type, // 'payment', 'status', 'system', 'error', 'access'
+            message: message,
+            data: data,
+            timestamp: new Date().toISOString(),
+            time: new Date().toLocaleTimeString('pt-BR'),
+            date: new Date().toLocaleDateString('pt-BR'),
+            ip: 'server'
+        };
+
+        this.database.logs.unshift(log);
+        
+        // Manter apenas últimos 500 logs
+        if (this.database.logs.length > 500) {
+            this.database.logs = this.database.logs.slice(0, 500);
         }
+        
+        // Log no console também
+        const colors = {
+            payment: '🟢',
+            status: '🔵',
+            system: '⚪',
+            error: '🔴',
+            access: '🟡'
+        };
+        console.log(`${colors[type] || '📝'} ${new Date().toLocaleTimeString('pt-BR')} ${message}`);
+        
+        return log;
     }
 
-    // Carregar banco de dados
-    loadDatabase() {
-        try {
-            const data = fs.readFileSync(this.dbPath, 'utf8');
-            return JSON.parse(data);
-        } catch (error) {
-            console.error('❌ Erro ao carregar banco de dados:', error.message);
-            return { payments: [], users: [], settings: {}, lastUpdate: new Date().toISOString() };
-        }
-    }
-
-    // Salvar banco de dados
-    saveDatabase(data) {
-        try {
-            data.lastUpdate = new Date().toISOString();
-            fs.writeFileSync(this.dbPath, JSON.stringify(data, null, 2));
-            return true;
-        } catch (error) {
-            console.error('❌ Erro ao salvar banco de dados:', error.message);
-            return false;
-        }
-    }
-
-    // Validar login
-    validateLogin(username, password) {
-        const isValid = username === ADMIN_CONFIG.username && password === ADMIN_CONFIG.password;
-        console.log(`🔐 Login: ${username} - ${isValid ? '✅' : '❌'}`);
-        return isValid;
-    }
-
-    // Validar token
-    validateToken(token) {
-        const isValid = token === ADMIN_CONFIG.secret;
-        if (!isValid) console.log('❌ Token inválido');
-        return isValid;
-    }
-
-    // Adicionar pagamento
+    // ========== GERENCIAMENTO DE PAGAMENTOS ==========
     addPayment(paymentData) {
         try {
-            console.log('📋 Tentando registrar pagamento:', paymentData.id);
-            
-            const db = this.loadDatabase();
-            
             const payment = {
-                id: paymentData.id || `PIX_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                id: paymentData.id || `PIX_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
                 transactionId: paymentData.transactionId || paymentData.id,
-                customerName: paymentData.customerName || '',
-                customerEmail: paymentData.customerEmail || '',
-                customerCpf: paymentData.customerCpf || '',
-                amount: paymentData.amount || 21.67,
-                status: paymentData.status || 'pending',
+                customerName: paymentData.customerName?.trim() || 'Cliente',
+                customerEmail: paymentData.customerEmail?.trim() || '',
+                customerCpf: this.formatCPF(paymentData.customerCpf || ''),
+                amount: parseFloat(paymentData.amount) || 21.67,
+                status: 'pending',
                 pixCode: paymentData.pixCode || '',
                 pixUrl: paymentData.pixUrl || '',
-                createdAt: paymentData.createdAt || new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                createdTime: new Date().toLocaleTimeString('pt-BR'),
+                createdDate: new Date().toLocaleDateString('pt-BR'),
                 updatedAt: new Date().toISOString(),
-                paidAt: paymentData.paidAt || null,
-                notes: paymentData.notes || ''
+                paidAt: null,
+                sessionId: paymentData.sessionId || '',
+                userAgent: paymentData.userAgent || '',
+                ip: paymentData.ip || ''
             };
 
-            console.log('📝 Pagamento a ser salvo:', payment);
+            // Adicionar ao banco de dados
+            this.database.payments.unshift(payment);
             
-            db.payments.unshift(payment);
+            // Atualizar estatísticas
+            this.updateStatistics(payment);
             
-            // Manter apenas os últimos 1000 pagamentos
-            if (db.payments.length > 1000) {
-                db.payments = db.payments.slice(0, 1000);
+            // Log detalhado
+            this.addLog('payment', `💰 NOVO PIX: ${payment.customerName} - R$ ${payment.amount.toFixed(2)}`, {
+                id: payment.id,
+                customer: payment.customerName,
+                email: payment.customerEmail,
+                cpf: payment.customerCpf,
+                amount: payment.amount,
+                status: payment.status
+            });
+
+            // Manter apenas últimos 200 pagamentos
+            if (this.database.payments.length > 200) {
+                this.database.payments = this.database.payments.slice(0, 200);
             }
 
-            const saved = this.saveDatabase(db);
+            this.database.lastUpdate = new Date().toISOString();
             
-            if (saved) {
-                console.log(`✅ Pagamento ${payment.id} registrado no admin para ${payment.customerName}`);
-                return payment;
-            } else {
-                console.log(`❌ Falha ao salvar pagamento ${payment.id}`);
-                return null;
-            }
+            return payment;
             
         } catch (error) {
-            console.error('❌ Erro ao adicionar pagamento:', error);
+            this.addLog('error', `Erro ao registrar pagamento: ${error.message}`);
             return null;
         }
     }
 
-    // Atualizar status do pagamento
-    updatePaymentStatus(paymentId, status) {
-        try {
-            const db = this.loadDatabase();
-            const paymentIndex = db.payments.findIndex(p => p.id === paymentId);
+    // ========== ATUALIZAR ESTATÍSTICAS ==========
+    updateStatistics(payment) {
+        const stats = this.database.statistics;
+        
+        if (payment.status === 'paid') {
+            stats.totalRevenue += payment.amount;
+            stats.totalPayments++;
             
-            if (paymentIndex !== -1) {
-                db.payments[paymentIndex].status = status;
-                db.payments[paymentIndex].updatedAt = new Date().toISOString();
-                
-                if (status === 'paid') {
-                    db.payments[paymentIndex].paidAt = new Date().toISOString();
-                }
-                
-                this.saveDatabase(db);
-                console.log(`✅ Status atualizado: ${paymentId} -> ${status}`);
-                return true;
+            // Verificar se é do dia de hoje
+            const today = new Date().toDateString();
+            const paymentDate = new Date(payment.createdAt).toDateString();
+            
+            if (today === paymentDate) {
+                stats.todayRevenue += payment.amount;
+                stats.todayPayments++;
             }
-            console.log(`❌ Pagamento não encontrado: ${paymentId}`);
-            return false;
-        } catch (error) {
-            console.error('❌ Erro ao atualizar pagamento:', error);
-            return false;
+        } else if (payment.status === 'pending') {
+            stats.pendingPayments++;
+        }
+        
+        // Adicionar cliente ao conjunto único
+        if (payment.customerEmail) {
+            stats.uniqueCustomers.add(payment.customerEmail);
         }
     }
 
-    // Excluir pagamento
-    deletePayment(paymentId) {
-        try {
-            const db = this.loadDatabase();
-            const initialLength = db.payments.length;
+    // ========== STATUS E ATUALIZAÇÕES ==========
+    updatePaymentStatus(paymentId, status, adminUser = 'admin') {
+        const payment = this.database.payments.find(p => p.id === paymentId);
+        
+        if (payment) {
+            const oldStatus = payment.status;
+            payment.status = status;
+            payment.updatedAt = new Date().toISOString();
             
-            db.payments = db.payments.filter(p => p.id !== paymentId);
-            
-            if (db.payments.length < initialLength) {
-                this.saveDatabase(db);
-                console.log(`✅ Pagamento excluído: ${paymentId}`);
-                return true;
+            if (status === 'paid') {
+                payment.paidAt = new Date().toISOString();
+                payment.paidTime = new Date().toLocaleTimeString('pt-BR');
+                payment.paidDate = new Date().toLocaleDateString('pt-BR');
+                
+                // Atualizar estatísticas
+                this.database.statistics.totalRevenue += payment.amount;
+                this.database.statistics.totalPayments++;
+                this.database.statistics.pendingPayments = Math.max(0, this.database.statistics.pendingPayments - 1);
             }
-            return false;
-        } catch (error) {
-            console.error('❌ Erro ao excluir pagamento:', error);
-            return false;
+
+            // Log da atualização
+            this.addLog('status', `🔄 Status atualizado: ${paymentId} (${oldStatus} → ${status})`, {
+                paymentId: paymentId,
+                customer: payment.customerName,
+                amount: payment.amount,
+                oldStatus: oldStatus,
+                newStatus: status,
+                updatedBy: adminUser
+            });
+
+            return true;
         }
+        
+        this.addLog('error', `Pagamento não encontrado: ${paymentId}`);
+        return false;
     }
 
-    // Obter estatísticas
+    // ========== RELATÓRIOS E ESTATÍSTICAS ==========
     getStats() {
-        const db = this.loadDatabase();
-        const payments = db.payments;
-
-        console.log(`📊 Total de pagamentos no banco: ${payments.length}`);
-
-        const totalRevenue = payments
-            .filter(p => p.status === 'paid')
-            .reduce((sum, p) => sum + (p.amount || 0), 0);
-
-        const totalPayments = payments.filter(p => p.status === 'paid').length;
-        const pendingPayments = payments.filter(p => p.status === 'pending').length;
-        const failedPayments = payments.filter(p => p.status === 'failed').length;
-
-        // Gerar dados para gráfico (últimos 7 dias)
-        const chartData = {
-            labels: [],
-            data: []
+        const stats = this.database.statistics;
+        const payments = this.database.payments;
+        
+        // Calcular receita dos últimos 7 dias
+        const last7Days = this.getLast7DaysRevenue();
+        
+        return {
+            totalRevenue: stats.totalRevenue.toFixed(2),
+            todayRevenue: stats.todayRevenue.toFixed(2),
+            totalPayments: stats.totalPayments,
+            todayPayments: stats.todayPayments,
+            pendingPayments: this.database.payments.filter(p => p.status === 'pending').length,
+            uniqueCustomers: stats.uniqueCustomers.size,
+            conversionRate: stats.totalPayments > 0 ? 
+                ((stats.totalPayments / payments.length) * 100).toFixed(1) : '0.0',
+            averageValue: stats.totalPayments > 0 ? 
+                (stats.totalRevenue / stats.totalPayments).toFixed(2) : '0.00',
+            chartData: {
+                labels: last7Days.map(d => d.date),
+                data: last7Days.map(d => d.revenue)
+            }
         };
+    }
 
+    getLast7DaysRevenue() {
+        const result = [];
+        const payments = this.database.payments;
+        
         for (let i = 6; i >= 0; i--) {
             const date = new Date();
             date.setDate(date.getDate() - i);
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
             
             const dayRevenue = payments
                 .filter(p => {
-                    const paymentDate = p.createdAt.split('T')[0];
-                    return paymentDate === dateStr && p.status === 'paid';
+                    const paymentDate = new Date(p.createdAt);
+                    return paymentDate.toDateString() === date.toDateString() && p.status === 'paid';
                 })
-                .reduce((sum, p) => sum + (p.amount || 0), 0);
+                .reduce((sum, p) => sum + p.amount, 0);
             
-            chartData.labels.push(dateStr.substring(5)); // MM-DD
-            chartData.data.push(dayRevenue.toFixed(2));
+            result.push({
+                date: dateStr,
+                revenue: parseFloat(dayRevenue.toFixed(2))
+            });
         }
-
-        return {
-            totalRevenue: totalRevenue.toFixed(2),
-            totalPayments,
-            pendingPayments,
-            failedPayments,
-            totalUsers: new Set(payments.map(p => p.customerEmail)).size,
-            chartData: chartData
-        };
-    }
-
-    // Obter pagamentos recentes
-    getRecentPayments(limit = 10) {
-        const db = this.loadDatabase();
-        const recent = db.payments
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-            .slice(0, limit)
-            .map(p => ({
-                id: p.id,
-                customer_name: p.customerName,
-                customer_email: p.customerEmail,
-                customer_cpf: p.customerCpf,
-                amount: p.amount,
-                status: p.status,
-                created_at: p.createdAt,
-                paid_at: p.paidAt,
-                pix_code: p.pixCode ? `${p.pixCode.substring(0, 20)}...` : ''
-            }));
         
-        console.log(`📋 Retornando ${recent.length} pagamentos recentes`);
-        return recent;
+        return result;
     }
 
-    // Obter todos os pagamentos com filtros
-    getAllPayments(filter = 'all', page = 1, limit = 50) {
-        const db = this.loadDatabase();
-        let payments = [...db.payments];
+    // ========== BUSCA E FILTROS ==========
+    getAllPayments(filter = 'all', page = 1, limit = 20) {
+        let payments = [...this.database.payments];
 
         if (filter !== 'all') {
             payments = payments.filter(p => p.status === filter);
@@ -249,56 +239,104 @@ class AdminSystem {
         const start = (page - 1) * limit;
         const end = start + limit;
 
-        const paginated = payments
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-            .slice(start, end)
-            .map(p => ({
-                id: p.id,
-                transaction_id: p.transactionId || p.id,
-                customer_name: p.customerName,
-                customer_email: p.customerEmail,
-                customer_cpf: p.customerCpf,
-                amount: p.amount,
-                status: p.status,
-                created_at: p.createdAt,
-                paid_at: p.paidAt,
-                pix_code: p.pixCode,
-                pix_url: p.pixUrl
-            }));
-
-        console.log(`📄 Paginação: página ${page}, total ${total}, mostrando ${paginated.length}`);
-        
         return {
-            payments: paginated,
+            payments: payments.slice(start, end),
             pagination: {
                 page,
                 limit,
                 total,
-                pages
+                pages,
+                hasNext: page < pages,
+                hasPrev: page > 1
             }
         };
     }
 
-    // Obter banco de dados completo
-    getDatabase() {
-        return this.loadDatabase();
+    searchPayments(query) {
+        const searchTerm = query.toLowerCase();
+        return this.database.payments.filter(p => 
+            p.customerName.toLowerCase().includes(searchTerm) ||
+            p.customerEmail.toLowerCase().includes(searchTerm) ||
+            p.customerCpf.includes(searchTerm) ||
+            p.id.toLowerCase().includes(searchTerm)
+        );
     }
 
-    // Limpar dados
+    // ========== LOGS DO SISTEMA ==========
+    getLogs(filter = 'all', limit = 50) {
+        let logs = [...this.database.logs];
+
+        if (filter !== 'all') {
+            logs = logs.filter(log => log.type === filter);
+        }
+
+        return logs.slice(0, limit);
+    }
+
+    getSystemInfo() {
+        return {
+            serverTime: new Date().toLocaleString('pt-BR'),
+            uptime: process.uptime(),
+            memoryUsage: process.memoryUsage(),
+            totalLogs: this.database.logs.length,
+            totalPayments: this.database.payments.length,
+            lastUpdate: this.database.lastUpdate
+        };
+    }
+
+    // ========== FUNÇÕES ÚTEIS ==========
+    formatCPF(cpf) {
+        if (!cpf) return '';
+        const cleaned = cpf.replace(/\D/g, '');
+        return cleaned.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    }
+
+    // ========== VALIDAÇÃO ==========
+    validateLogin(username, password) {
+        const isValid = username === ADMIN_CONFIG.username && password === ADMIN_CONFIG.password;
+        this.addLog('access', `🔐 Login ${isValid ? 'bem-sucedido' : 'falhou'}: ${username}`);
+        return isValid;
+    }
+
+    validateToken(token) {
+        return token === ADMIN_CONFIG.secret;
+    }
+
+    // ========== LIMPEZA ==========
     clearDatabase() {
-        const emptyData = {
+        this.database = {
             payments: [],
-            users: [],
-            settings: {},
+            logs: [],
+            statistics: {
+                totalRevenue: 0,
+                todayRevenue: 0,
+                totalPayments: 0,
+                todayPayments: 0,
+                pendingPayments: 0,
+                uniqueCustomers: new Set()
+            },
             lastUpdate: new Date().toISOString()
         };
-        const success = this.saveDatabase(emptyData);
-        if (success) console.log('✅ Banco de dados limpo');
-        return success;
+        
+        this.addLog('system', '📁 Banco de dados limpo pelo administrador');
+        return true;
+    }
+
+    // ========== BACKUP SIMPLES ==========
+    exportData() {
+        return {
+            payments: this.database.payments,
+            logs: this.database.logs,
+            statistics: {
+                ...this.database.statistics,
+                uniqueCustomers: Array.from(this.database.statistics.uniqueCustomers)
+            },
+            exportTime: new Date().toISOString(),
+            totalRecords: this.database.payments.length + this.database.logs.length
+        };
     }
 }
 
-// Criar instância única
+// Exportar instância única
 const adminSystem = new AdminSystem();
-
 module.exports = adminSystem;

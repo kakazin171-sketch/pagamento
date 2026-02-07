@@ -403,31 +403,134 @@
             </div>
         </div>
 
-        <!-- Seção Logs -->
-        <div id="logsSection" class="section-content">
-            <div class="table-container">
-                <h5>📋 Logs do Sistema</h5>
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Data/Hora</th>
-                                <th>Tipo</th>
-                                <th>Mensagem</th>
-                                <th>IP</th>
-                            </tr>
-                        </thead>
-                        <tbody id="logsTable">
-                            <tr>
-                                <td colspan="4" class="text-center text-muted py-4">
-                                    Logs serão exibidos aqui
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+        <!-- Seção Logs - Versão Melhorada -->
+<div id="logsSection" class="section-content">
+    <div class="table-container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h5 class="mb-1">📊 Logs do Sistema em Tempo Real</h5>
+                <small class="text-muted">Monitoramento completo de todas as atividades</small>
+            </div>
+            <div class="d-flex gap-2">
+                <div class="btn-group">
+                    <button class="btn btn-outline-primary btn-sm active" data-log-filter="all">Todos</button>
+                    <button class="btn btn-outline-success btn-sm" data-log-filter="payment">PIX</button>
+                    <button class="btn btn-outline-info btn-sm" data-log-filter="status">Status</button>
+                    <button class="btn btn-outline-warning btn-sm" data-log-filter="access">Acesso</button>
+                    <button class="btn btn-outline-danger btn-sm" data-log-filter="error">Erros</button>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="loadLogs()">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Filtros e Busca -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" id="logSearch" class="form-control" placeholder="Buscar em logs..." onkeyup="searchLogs()">
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="btn-group">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="exportLogs()">
+                        <i class="fas fa-download"></i> Exportar
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="clearLogsView()">
+                        <i class="fas fa-trash"></i> Limpar
+                    </button>
                 </div>
             </div>
         </div>
+
+        <!-- Estatísticas Rápidas -->
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body py-2">
+                        <small class="text-muted">Total Logs</small>
+                        <div class="fw-bold" id="totalLogs">0</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body py-2">
+                        <small class="text-muted">Última Atualização</small>
+                        <div class="fw-bold" id="lastUpdate">--:--:--</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body py-2">
+                        <small class="text-muted">PIX Hoje</small>
+                        <div class="fw-bold" id="pixToday">0</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body py-2">
+                        <small class="text-muted">Status</small>
+                        <div class="fw-bold text-success" id="systemStatus">Online</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabela de Logs -->
+        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+            <table class="table table-sm table-hover">
+                <thead style="position: sticky; top: 0; background: white; z-index: 1;">
+                    <tr>
+                        <th width="150">Data/Hora</th>
+                        <th width="80">Tipo</th>
+                        <th>Mensagem</th>
+                        <th width="200">Detalhes</th>
+                        <th width="100">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="logsTable">
+                    <!-- Logs serão carregados aqui -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginação -->
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <small class="text-muted" id="logCount">Mostrando 0 logs</small>
+            <div class="btn-group">
+                <button class="btn btn-outline-secondary btn-sm" onclick="loadMoreLogs()">
+                    <i class="fas fa-plus"></i> Carregar Mais
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="autoRefreshToggle()">
+                    <i class="fas fa-play" id="autoRefreshIcon"></i> <span id="autoRefreshText">Auto</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Detalhes do Log -->
+<div class="modal fade" id="logDetailModal">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes do Log</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="logDetailContent"></div>
+            </div>
+        </div>
+    </div>
+</div>    
+        
     </div>
 
     <!-- Modal de Visualização -->
@@ -1054,6 +1157,256 @@
         window.markAsPaid = markAsPaid;
         window.deletePayment = deletePayment;
         window.viewPaymentDetails = viewPaymentDetails;
+          // ========== SISTEMA DE LOGS ==========
+let currentLogFilter = 'all';
+let currentLogLimit = 50;
+let autoRefreshInterval = null;
+let isAutoRefresh = false;
+
+// Carregar logs
+async function loadLogs() {
+    try {
+        const response = await fetch(`${API_BASE}/api/admin-system/logs?type=${currentLogFilter}&limit=${currentLogLimit}`, {
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            renderLogs(data.logs);
+            updateLogStats(data.logs);
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('pt-BR');
+        }
+    } catch (error) {
+        console.error('Erro ao carregar logs:', error);
+    }
+}
+
+// Renderizar logs
+function renderLogs(logs) {
+    const tbody = document.getElementById('logsTable');
+    
+    if (logs.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                    <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                    Nenhum log encontrado
+                </td>
+            </tr>
+        `;
+        document.getElementById('logCount').textContent = 'Mostrando 0 logs';
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    
+    logs.forEach(log => {
+        const row = document.createElement('tr');
+        const date = new Date(log.timestamp);
+        
+        // Ícone e cor por tipo
+        const typeConfig = {
+            payment: { icon: '💰', color: 'success', label: 'PIX' },
+            status: { icon: '🔄', color: 'info', label: 'Status' },
+            system: { icon: '⚙️', color: 'secondary', label: 'Sistema' },
+            access: { icon: '🔐', color: 'warning', label: 'Acesso' },
+            error: { icon: '❌', color: 'danger', label: 'Erro' }
+        };
+        
+        const config = typeConfig[log.type] || { icon: '📝', color: 'primary', label: 'Outro' };
+        
+        // Detalhes resumidos
+        let details = '';
+        if (log.data) {
+            if (log.type === 'payment') {
+                details = `
+                    <div><small><strong>Cliente:</strong> ${log.data.customer || 'N/A'}</small></div>
+                    <div><small><strong>Valor:</strong> R$ ${log.data.amount || '0.00'}</small></div>
+                    <div><small><strong>Status:</strong> ${log.data.status || 'pending'}</small></div>
+                `;
+            } else if (log.type === 'status') {
+                details = `<small>${log.data.oldStatus} → ${log.data.newStatus}</small>`;
+            } else {
+                details = `<small>${JSON.stringify(log.data).substring(0, 100)}...</small>`;
+            }
+        }
+        
+        row.innerHTML = `
+            <td>
+                <div><small>${log.date}</small></div>
+                <div><small class="text-muted">${log.time}</small></div>
+            </td>
+            <td>
+                <span class="badge bg-${config.color}">
+                    ${config.icon} ${config.label}
+                </span>
+            </td>
+            <td>
+                <div class="fw-bold">${log.message}</div>
+                ${log.id ? `<small class="text-muted">ID: ${log.id}</small>` : ''}
+            </td>
+            <td>
+                ${details || '<small class="text-muted">Sem detalhes</small>'}
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="showLogDetail('${log.id}')" title="Detalhes">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="copyLog('${log.id}')" title="Copiar">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+    
+    document.getElementById('logCount').textContent = `Mostrando ${logs.length} logs`;
+}
+
+// Atualizar estatísticas
+function updateLogStats(logs) {
+    document.getElementById('totalLogs').textContent = logs.length;
+    
+    // Contar PIX de hoje
+    const today = new Date().toLocaleDateString('pt-BR');
+    const pixToday = logs.filter(log => 
+        log.type === 'payment' && log.date === today
+    ).length;
+    document.getElementById('pixToday').textContent = pixToday;
+}
+
+// Buscar logs
+function searchLogs() {
+    const search = document.getElementById('logSearch').value.toLowerCase();
+    const rows = document.querySelectorAll('#logsTable tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(search) ? '' : 'none';
+    });
+}
+
+// Mostrar detalhes do log
+async function showLogDetail(logId) {
+    const logs = await getLogs();
+    const log = logs.find(l => l.id === logId);
+    
+    if (log) {
+        let content = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Informações Básicas</h6>
+                    <p><strong>ID:</strong> ${log.id}</p>
+                    <p><strong>Tipo:</strong> ${log.type}</p>
+                    <p><strong>Data/Hora:</strong> ${log.date} ${log.time}</p>
+                    <p><strong>Mensagem:</strong> ${log.message}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Dados Técnicos</h6>
+                    <p><strong>Timestamp:</strong> ${log.timestamp}</p>
+                    <p><strong>IP:</strong> ${log.ip || 'N/A'}</p>
+                </div>
+            </div>
+        `;
+        
+        if (log.data) {
+            content += `
+                <hr>
+                <h6>Dados Detalhados</h6>
+                <pre class="bg-light p-3 rounded" style="max-height: 300px; overflow: auto;">
+${JSON.stringify(log.data, null, 2)}
+                </pre>
+            `;
+        }
+        
+        document.getElementById('logDetailContent').innerHTML = content;
+        new bootstrap.Modal(document.getElementById('logDetailModal')).show();
+    }
+}
+
+// Sistema de auto-refresh
+function autoRefreshToggle() {
+    isAutoRefresh = !isAutoRefresh;
+    const icon = document.getElementById('autoRefreshIcon');
+    const text = document.getElementById('autoRefreshText');
+    
+    if (isAutoRefresh) {
+        icon.className = 'fas fa-stop';
+        text.textContent = 'Parar';
+        autoRefreshInterval = setInterval(loadLogs, 5000); // Atualiza a cada 5 segundos
+    } else {
+        icon.className = 'fas fa-play';
+        text.textContent = 'Auto';
+        clearInterval(autoRefreshInterval);
+    }
+}
+
+// Carregar mais logs
+function loadMoreLogs() {
+    currentLogLimit += 50;
+    loadLogs();
+}
+
+// Exportar logs
+async function exportLogs() {
+    try {
+        const response = await fetch(`${API_BASE}/api/admin-system/export`, {
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = data.filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('Logs exportados com sucesso!');
+        }
+    } catch (error) {
+        console.error('Erro ao exportar:', error);
+        alert('Erro ao exportar logs');
+    }
+}
+
+// Configurar filtros
+document.querySelectorAll('[data-log-filter]').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('[data-log-filter]').forEach(b => {
+            b.classList.remove('active');
+        });
+        this.classList.add('active');
+        currentLogFilter = this.dataset.logFilter;
+        currentLogLimit = 50;
+        loadLogs();
+    });
+});
+
+// Iniciar sistema de logs
+document.addEventListener('DOMContentLoaded', function() {
+    loadLogs();
+    
+    // Atualizar a cada 30 segundos
+    setInterval(() => {
+        if (!isAutoRefresh) {
+            document.getElementById('systemStatus').className = 'fw-bold text-success';
+            document.getElementById('systemStatus').textContent = 'Online';
+        }
+    }, 30000);
+});
     </script>
 </body>
 </html>

