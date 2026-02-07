@@ -116,6 +116,11 @@
             align-items: center;
             gap: 8px;
         }
+        .refresh-btn:hover {
+            background: #ff3366;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(255,0,80,0.2);
+        }
         .logout-btn {
             background: transparent;
             color: var(--danger);
@@ -123,6 +128,60 @@
             padding: 8px 20px;
             border-radius: 8px;
             cursor: pointer;
+            transition: all 0.3s;
+        }
+        .logout-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+        .section-content {
+            display: none;
+        }
+        .section-content.active {
+            display: block;
+        }
+        .d-none {
+            display: none !important;
+        }
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 0.25rem rgba(255, 0, 80, 0.25);
+        }
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        .btn-primary:hover {
+            background: #ff3366;
+            border-color: #ff3366;
+        }
+        .btn-success {
+            background: var(--success);
+            border-color: var(--success);
+        }
+        .btn-info {
+            background: var(--secondary);
+            border-color: var(--secondary);
+            color: #000;
+        }
+        .btn-info:hover {
+            background: #00c2b8;
+            border-color: #00c2b8;
+            color: #000;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -141,17 +200,11 @@
             <a href="#" data-section="payments">
                 <i class="fas fa-money-bill-wave"></i> Pagamentos
             </a>
-            <a href="#" data-section="users">
-                <i class="fas fa-users"></i> Clientes
-            </a>
             <a href="#" data-section="settings">
                 <i class="fas fa-cog"></i> Configurações
             </a>
             <a href="#" data-section="logs">
                 <i class="fas fa-history"></i> Logs
-            </a>
-            <a href="#" data-section="api">
-                <i class="fas fa-code"></i> API Status
             </a>
         </div>
         
@@ -183,7 +236,8 @@
         </div>
 
         <!-- Dashboard -->
-        <div id="dashboardSection" class="section-content">
+        <div id="dashboardSection" class="section-content active">
+            <div class="loader" id="dashboardLoader"></div>
             <div class="row">
                 <div class="col-md-3">
                     <div class="stats-card">
@@ -245,7 +299,11 @@
                             </tr>
                         </thead>
                         <tbody id="recentPayments">
-                            <!-- Dados serão inseridos aqui -->
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    Carregando pagamentos...
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -253,7 +311,8 @@
         </div>
 
         <!-- Seção Pagamentos -->
-        <div id="paymentsSection" class="section-content d-none">
+        <div id="paymentsSection" class="section-content">
+            <div class="loader" id="paymentsLoader"></div>
             <div class="table-container">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5>💰 Todos os Pagamentos</h5>
@@ -279,15 +338,26 @@
                             </tr>
                         </thead>
                         <tbody id="allPayments">
-                            <!-- Dados serão inseridos aqui -->
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">
+                                    Carregando pagamentos...
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <small class="text-muted" id="paginationInfo">Mostrando 0 de 0 pagamentos</small>
+                    <div class="btn-group">
+                        <button class="btn btn-outline-secondary btn-sm" id="prevPage" disabled>Anterior</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="nextPage" disabled>Próxima</button>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Seção Configurações -->
-        <div id="settingsSection" class="section-content d-none">
+        <div id="settingsSection" class="section-content">
             <div class="table-container">
                 <h5>⚙️ Configurações do Sistema</h5>
                 
@@ -312,34 +382,67 @@
                     <div class="col-md-6">
                         <div class="card mb-3">
                             <div class="card-body">
-                                <h6>Configurações de Email</h6>
+                                <h6>Exportar Dados</h6>
                                 <div class="mb-2">
-                                    <label class="form-label">SMTP Server</label>
-                                    <input type="text" class="form-control" id="smtpServer">
+                                    <label class="form-label">Formato</label>
+                                    <select class="form-select" id="exportFormat">
+                                        <option value="json">JSON</option>
+                                        <option value="csv">CSV</option>
+                                    </select>
                                 </div>
-                                <div class="mb-2">
-                                    <label class="form-label">Email Notificações</label>
-                                    <input type="email" class="form-control" id="notificationEmail">
-                                </div>
-                                <button class="btn btn-primary mt-2">Salvar Email</button>
+                                <button class="btn btn-success w-100 mt-2" id="exportData">
+                                    <i class="fas fa-download"></i> Exportar Dados
+                                </button>
+                                <button class="btn btn-danger w-100 mt-2" id="clearData">
+                                    <i class="fas fa-trash"></i> Limpar Todos os Dados
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
-                
-                <div class="card">
-                    <div class="card-body">
-                        <h6>Exportar Dados</h6>
-                        <button class="btn btn-success me-2" id="exportCSV">
-                            <i class="fas fa-file-csv"></i> Exportar CSV
-                        </button>
-                        <button class="btn btn-info me-2" id="exportJSON">
-                            <i class="fas fa-file-code"></i> Exportar JSON
-                        </button>
-                        <button class="btn btn-danger" id="clearData">
-                            <i class="fas fa-trash"></i> Limpar Dados
-                        </button>
-                    </div>
+            </div>
+        </div>
+
+        <!-- Seção Logs -->
+        <div id="logsSection" class="section-content">
+            <div class="table-container">
+                <h5>📋 Logs do Sistema</h5>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Tipo</th>
+                                <th>Mensagem</th>
+                                <th>IP</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTable">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    Logs serão exibidos aqui
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Visualização -->
+    <div class="modal fade" id="paymentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Detalhes do Pagamento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="paymentModalBody">
+                    Carregando...
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
                 </div>
             </div>
         </div>
@@ -354,20 +457,17 @@
         let authToken = localStorage.getItem('adminToken');
         let currentUser = localStorage.getItem('adminUser');
 
+        // Estado da aplicação
+        let currentPage = 1;
+        const limit = 20;
+        let currentFilter = 'all';
+        let totalPayments = 0;
+        let revenueChart = null;
+
         // Verificar login
         if (!authToken || !currentUser) {
-            window.location.href = '/login.html';
+            window.location.href = '/entrar-admin.html';
         }
-
-        // Elementos DOM
-        const sections = {
-            dashboard: document.getElementById('dashboardSection'),
-            payments: document.getElementById('paymentsSection'),
-            settings: document.getElementById('settingsSection'),
-            users: document.getElementById('usersSection'),
-            logs: document.getElementById('logsSection'),
-            api: document.getElementById('apiSection')
-        };
 
         // Inicializar
         document.addEventListener('DOMContentLoaded', function() {
@@ -379,9 +479,12 @@
         // Função para carregar dashboard
         async function loadDashboard() {
             try {
-                const response = await fetch(`${API_BASE}/api/admin/dashboard`, {
+                showLoader('dashboardLoader');
+                
+                const response = await fetch(`${API_BASE}/api/admin-system/dashboard`, {
                     headers: {
-                        'Authorization': `Bearer ${authToken}`
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
                     }
                 });
                 
@@ -394,9 +497,14 @@
                 
                 if (data.success) {
                     updateDashboard(data.data);
+                } else {
+                    showError('Erro ao carregar dashboard: ' + (data.error || 'Desconhecido'));
                 }
             } catch (error) {
                 console.error('Erro ao carregar dashboard:', error);
+                showError('Erro de conexão com o servidor');
+            } finally {
+                hideLoader('dashboardLoader');
             }
         }
 
@@ -404,24 +512,36 @@
         function updateDashboard(data) {
             // Estatísticas
             document.getElementById('totalRevenue').textContent = 
-                `R$ ${data.totalRevenue.toFixed(2)}`;
+                `R$ ${parseFloat(data.totalRevenue || 0).toFixed(2)}`;
             document.getElementById('totalPayments').textContent = 
-                data.totalPayments;
+                data.totalPayments || 0;
             document.getElementById('pendingPayments').textContent = 
-                data.pendingPayments;
+                data.pendingPayments || 0;
             document.getElementById('totalUsers').textContent = 
-                data.totalUsers;
+                data.totalUsers || 0;
             
             // Últimos pagamentos
-            updateRecentPayments(data.recentPayments);
+            updateRecentPayments(data.recentPayments || []);
             
             // Gráfico
-            renderChart(data.chartData);
+            renderChart(data.chartData || { labels: [], data: [] });
         }
 
-        // Atualizar lista de pagamentos
+        // Atualizar lista de pagamentos recentes
         function updateRecentPayments(payments) {
             const tbody = document.getElementById('recentPayments');
+            
+            if (payments.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            Nenhum pagamento encontrado
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
             tbody.innerHTML = '';
             
             payments.forEach(payment => {
@@ -437,11 +557,11 @@
                 }
                 
                 row.innerHTML = `
-                    <td>${payment.id}</td>
+                    <td><small>${payment.id}</small></td>
                     <td>${payment.customer_name}</td>
-                    <td>R$ ${parseFloat(payment.amount).toFixed(2)}</td>
+                    <td>R$ ${parseFloat(payment.amount || 0).toFixed(2)}</td>
                     <td>${statusBadge}</td>
-                    <td>${new Date(payment.created_at).toLocaleString('pt-BR')}</td>
+                    <td>${formatDate(payment.created_at)}</td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary" onclick="viewPayment('${payment.id}')">
                             <i class="fas fa-eye"></i>
@@ -457,17 +577,17 @@
         function renderChart(chartData) {
             const ctx = document.getElementById('revenueChart').getContext('2d');
             
-            if (window.revenueChart) {
-                window.revenueChart.destroy();
+            if (revenueChart) {
+                revenueChart.destroy();
             }
             
-            window.revenueChart = new Chart(ctx, {
+            revenueChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: chartData.labels,
+                    labels: chartData.labels || [],
                     datasets: [{
                         label: 'Receita (R$)',
-                        data: chartData.data,
+                        data: chartData.data || [],
                         borderColor: '#FF0050',
                         backgroundColor: 'rgba(255, 0, 80, 0.1)',
                         borderWidth: 2,
@@ -496,6 +616,326 @@
             });
         }
 
+        // Carregar todos os pagamentos
+        async function loadAllPayments(page = 1, filter = 'all') {
+            try {
+                showLoader('paymentsLoader');
+                
+                const response = await fetch(`${API_BASE}/api/admin-system/payments?page=${page}&limit=${limit}&status=${filter}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    totalPayments = data.pagination.total;
+                    updatePaginationInfo(data.pagination);
+                    renderAllPayments(data.payments);
+                } else {
+                    showError('Erro ao carregar pagamentos: ' + (data.error || 'Desconhecido'));
+                }
+            } catch (error) {
+                console.error('Erro ao carregar pagamentos:', error);
+                showError('Erro de conexão com o servidor');
+            } finally {
+                hideLoader('paymentsLoader');
+            }
+        }
+
+        // Renderizar todos os pagamentos
+        function renderAllPayments(payments) {
+            const tbody = document.getElementById('allPayments');
+            
+            if (payments.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            Nenhum pagamento encontrado
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            
+            payments.forEach(payment => {
+                const row = document.createElement('tr');
+                
+                let statusBadge = '';
+                if (payment.status === 'paid') {
+                    statusBadge = '<span class="status-badge status-paid">Pago</span>';
+                } else if (payment.status === 'pending') {
+                    statusBadge = '<span class="status-badge status-pending">Pendente</span>';
+                } else {
+                    statusBadge = '<span class="status-badge status-failed">Falhou</span>';
+                }
+                
+                row.innerHTML = `
+                    <td><small>${payment.transaction_id || payment.id}</small></td>
+                    <td>
+                        <div>${payment.customer_name || 'N/A'}</div>
+                        <small class="text-muted">${payment.customer_email || ''}</small>
+                    </td>
+                    <td>${formatCPF(payment.customer_cpf)}</td>
+                    <td><strong>R$ ${parseFloat(payment.amount || 0).toFixed(2)}</strong></td>
+                    <td>${statusBadge}</td>
+                    <td>${formatDate(payment.created_at)}</td>
+                    <td>${payment.paid_at ? formatDate(payment.paid_at) : '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewPaymentDetails('${payment.id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" onclick="markAsPaid('${payment.id}')" ${payment.status === 'paid' ? 'disabled' : ''}>
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deletePayment('${payment.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        // Atualizar informações de paginação
+        function updatePaginationInfo(pagination) {
+            const start = (pagination.page - 1) * pagination.limit + 1;
+            const end = Math.min(start + pagination.limit - 1, pagination.total);
+            
+            document.getElementById('paginationInfo').textContent = 
+                `Mostrando ${start}-${end} de ${pagination.total} pagamentos`;
+            
+            document.getElementById('prevPage').disabled = pagination.page <= 1;
+            document.getElementById('nextPage').disabled = pagination.page >= pagination.pages;
+        }
+
+        // Visualizar detalhes do pagamento
+        async function viewPaymentDetails(id) {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin-system/payments?status=all&limit=1000`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const payment = data.payments.find(p => p.id === id);
+                    if (payment) {
+                        showPaymentModal(payment);
+                    } else {
+                        showError('Pagamento não encontrado');
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao buscar pagamento:', error);
+                showError('Erro ao carregar detalhes');
+            }
+        }
+
+        // Mostrar modal com detalhes
+        function showPaymentModal(payment) {
+            const modalBody = document.getElementById('paymentModalBody');
+            
+            let statusBadge = '';
+            if (payment.status === 'paid') {
+                statusBadge = '<span class="badge bg-success">Pago</span>';
+            } else if (payment.status === 'pending') {
+                statusBadge = '<span class="badge bg-warning">Pendente</span>';
+            } else {
+                statusBadge = '<span class="badge bg-danger">Falhou</span>';
+            }
+            
+            modalBody.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Informações do Pagamento</h6>
+                        <p><strong>ID:</strong> ${payment.id}</p>
+                        <p><strong>Transação:</strong> ${payment.transaction_id || 'N/A'}</p>
+                        <p><strong>Status:</strong> ${statusBadge}</p>
+                        <p><strong>Valor:</strong> R$ ${parseFloat(payment.amount || 0).toFixed(2)}</p>
+                        <p><strong>Criado em:</strong> ${formatDateTime(payment.created_at)}</p>
+                        <p><strong>Pago em:</strong> ${payment.paid_at ? formatDateTime(payment.paid_at) : 'Não pago'}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Informações do Cliente</h6>
+                        <p><strong>Nome:</strong> ${payment.customer_name || 'N/A'}</p>
+                        <p><strong>Email:</strong> ${payment.customer_email || 'N/A'}</p>
+                        <p><strong>CPF:</strong> ${formatCPF(payment.customer_cpf)}</p>
+                    </div>
+                </div>
+                ${payment.pix_code ? `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Código PIX</h6>
+                        <div class="alert alert-secondary">
+                            <small>${payment.pix_code}</small>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+            `;
+            
+            const modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+            modal.show();
+        }
+
+        // Marcar como pago
+        async function markAsPaid(id) {
+            if (confirm('Marcar este pagamento como pago?')) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/admin-system/payments/${id}/paid`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Pagamento marcado como pago!');
+                        loadAllPayments(currentPage, currentFilter);
+                        loadDashboard();
+                    } else {
+                        alert('Erro: ' + (data.error || 'Desconhecido'));
+                    }
+                } catch (error) {
+                    console.error('Erro ao marcar como pago:', error);
+                    alert('Erro ao conectar com o servidor');
+                }
+            }
+        }
+
+        // Excluir pagamento
+        async function deletePayment(id) {
+            if (confirm('Tem certeza que deseja excluir este pagamento?')) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/admin-system/payments/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Pagamento excluído!');
+                        loadAllPayments(currentPage, currentFilter);
+                        loadDashboard();
+                    } else {
+                        alert('Erro: ' + (data.error || 'Desconhecido'));
+                    }
+                } catch (error) {
+                    console.error('Erro ao excluir pagamento:', error);
+                    alert('Erro ao conectar com o servidor');
+                }
+            }
+        }
+
+        // Exportar dados
+        async function exportData() {
+            try {
+                const format = document.getElementById('exportFormat').value;
+                const response = await fetch(`${API_BASE}/api/admin-system/export?format=${format}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (format === 'json') {
+                        const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `tiktok-pix-data-${new Date().toISOString().split('T')[0]}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }
+                    alert('Dados exportados com sucesso!');
+                } else {
+                    alert('Erro ao exportar: ' + (data.error || 'Desconhecido'));
+                }
+            } catch (error) {
+                console.error('Erro ao exportar:', error);
+                alert('Erro ao exportar dados');
+            }
+        }
+
+        // Limpar dados
+        async function clearAllData() {
+            if (confirm('ATENÇÃO: Isso apagará TODOS os dados do sistema. Esta ação não pode ser desfeita. Continuar?')) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/admin-system/clear`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Todos os dados foram limpos!');
+                        loadDashboard();
+                        loadAllPayments(1, 'all');
+                    } else {
+                        alert('Erro: ' + (data.error || 'Desconhecido'));
+                    }
+                } catch (error) {
+                    console.error('Erro ao limpar dados:', error);
+                    alert('Erro ao limpar dados');
+                }
+            }
+        }
+
+        // Funções auxiliares
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('pt-BR');
+        }
+
+        function formatDateTime(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleString('pt-BR');
+        }
+
+        function formatCPF(cpf) {
+            if (!cpf) return 'N/A';
+            return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+        }
+
+        function showLoader(loaderId) {
+            document.getElementById(loaderId).style.display = 'block';
+        }
+
+        function hideLoader(loaderId) {
+            document.getElementById(loaderId).style.display = 'none';
+        }
+
+        function showError(message) {
+            alert('Erro: ' + message);
+        }
+
         // Setup event listeners
         function setupEventListeners() {
             // Navegação do menu
@@ -518,7 +958,14 @@
             });
             
             // Botão de refresh
-            document.getElementById('refreshBtn').addEventListener('click', loadDashboard);
+            document.getElementById('refreshBtn').addEventListener('click', function() {
+                const activeSection = document.querySelector('.section-content.active').id;
+                if (activeSection === 'dashboardSection') {
+                    loadDashboard();
+                } else if (activeSection === 'paymentsSection') {
+                    loadAllPayments(currentPage, currentFilter);
+                }
+            });
             
             // Botão de logout
             document.getElementById('logoutBtn').addEventListener('click', logout);
@@ -526,179 +973,73 @@
             // Filtros de pagamentos
             document.querySelectorAll('[data-filter]').forEach(btn => {
                 btn.addEventListener('click', function() {
-                    const filter = this.dataset.filter;
-                    filterPayments(filter);
+                    // Remover active de todos
+                    document.querySelectorAll('[data-filter]').forEach(b => {
+                        b.classList.remove('active');
+                    });
+                    
+                    // Adicionar active ao clicado
+                    this.classList.add('active');
+                    
+                    // Aplicar filtro
+                    currentFilter = this.dataset.filter;
+                    currentPage = 1;
+                    loadAllPayments(currentPage, currentFilter);
                 });
             });
             
+            // Paginação
+            document.getElementById('prevPage').addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    loadAllPayments(currentPage, currentFilter);
+                }
+            });
+            
+            document.getElementById('nextPage').addEventListener('click', () => {
+                const totalPages = Math.ceil(totalPayments / limit);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    loadAllPayments(currentPage, currentFilter);
+                }
+            });
+            
             // Exportar dados
-            document.getElementById('exportCSV').addEventListener('click', exportCSV);
-            document.getElementById('exportJSON').addEventListener('click', exportJSON);
-            document.getElementById('clearData').addEventListener('click', clearData);
+            document.getElementById('exportData').addEventListener('click', exportData);
+            
+            // Limpar dados
+            document.getElementById('clearData').addEventListener('click', clearAllData);
         }
 
         // Mostrar seção
         function showSection(sectionName) {
             // Esconder todas as seções
-            Object.values(sections).forEach(section => {
-                if (section) section.classList.add('d-none');
+            document.querySelectorAll('.section-content').forEach(section => {
+                section.classList.remove('active');
+                section.classList.add('d-none');
             });
             
             // Mostrar seção selecionada
-            if (sections[sectionName]) {
-                sections[sectionName].classList.remove('d-none');
+            const section = document.getElementById(sectionName + 'Section');
+            if (section) {
+                section.classList.remove('d-none');
+                section.classList.add('active');
                 document.getElementById('sectionTitle').textContent = 
                     document.querySelector(`[data-section="${sectionName}"]`).textContent.trim();
-            }
-            
-            // Carregar dados específicos da seção
-            if (sectionName === 'payments') {
-                loadAllPayments();
-            }
-        }
-
-        // Carregar todos os pagamentos
-        async function loadAllPayments() {
-            try {
-                const response = await fetch(`${API_BASE}/api/admin/payments`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
                 
-                const data = await response.json();
-                
-                if (data.success) {
-                    renderAllPayments(data.payments);
+                // Carregar dados específicos da seção
+                if (sectionName === 'payments') {
+                    loadAllPayments(currentPage, currentFilter);
+                } else if (sectionName === 'dashboard') {
+                    loadDashboard();
                 }
-            } catch (error) {
-                console.error('Erro ao carregar pagamentos:', error);
-            }
-        }
-
-        // Renderizar todos os pagamentos
-        function renderAllPayments(payments) {
-            const tbody = document.getElementById('allPayments');
-            tbody.innerHTML = '';
-            
-            payments.forEach(payment => {
-                const row = document.createElement('tr');
-                
-                let statusBadge = '';
-                if (payment.status === 'paid') {
-                    statusBadge = '<span class="status-badge status-paid">Pago</span>';
-                } else if (payment.status === 'pending') {
-                    statusBadge = '<span class="status-badge status-pending">Pendente</span>';
-                } else {
-                    statusBadge = '<span class="status-badge status-failed">Falhou</span>';
-                }
-                
-                row.innerHTML = `
-                    <td><small>${payment.transaction_id}</small></td>
-                    <td>
-                        <div>${payment.customer_name}</div>
-                        <small class="text-muted">${payment.customer_email}</small>
-                    </td>
-                    <td>${payment.customer_cpf}</td>
-                    <td><strong>R$ ${parseFloat(payment.amount).toFixed(2)}</strong></td>
-                    <td>${statusBadge}</td>
-                    <td>${new Date(payment.created_at).toLocaleDateString('pt-BR')}</td>
-                    <td>${payment.paid_at ? new Date(payment.paid_at).toLocaleDateString('pt-BR') : '-'}</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-primary" onclick="viewPayment('${payment.id}')">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-success" onclick="markAsPaid('${payment.id}')">
-                            <i class="fas fa-check"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deletePayment('${payment.id}')">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                `;
-                
-                tbody.appendChild(row);
-            });
-        }
-
-        // Funções auxiliares
-        function viewPayment(id) {
-            alert(`Visualizando pagamento ${id}`);
-            // Implementar modal de visualização
-        }
-
-        async function markAsPaid(id) {
-            if (confirm('Marcar este pagamento como pago?')) {
-                try {
-                    const response = await fetch(`${API_BASE}/api/admin/payments/${id}/paid`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${authToken}`
-                        }
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        alert('Pagamento marcado como pago!');
-                        loadAllPayments();
-                        loadDashboard();
-                    }
-                } catch (error) {
-                    console.error('Erro ao marcar como pago:', error);
-                }
-            }
-        }
-
-        async function deletePayment(id) {
-            if (confirm('Tem certeza que deseja excluir este pagamento?')) {
-                try {
-                    const response = await fetch(`${API_BASE}/api/admin/payments/${id}`, {
-                        method: 'DELETE',
-                        headers: {
-                            'Authorization': `Bearer ${authToken}`
-                        }
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        alert('Pagamento excluído!');
-                        loadAllPayments();
-                        loadDashboard();
-                    }
-                } catch (error) {
-                    console.error('Erro ao excluir pagamento:', error);
-                }
-            }
-        }
-
-        function filterPayments(filter) {
-            // Implementar filtragem
-            console.log('Filtrando por:', filter);
-        }
-
-        function exportCSV() {
-            alert('Exportando dados em CSV...');
-            // Implementar exportação CSV
-        }
-
-        function exportJSON() {
-            alert('Exportando dados em JSON...');
-            // Implementar exportação JSON
-        }
-
-        function clearData() {
-            if (confirm('ATENÇÃO: Isso apagará todos os dados. Continuar?')) {
-                alert('Função de limpeza de dados');
-                // Implementar limpeza
             }
         }
 
         function logout() {
             localStorage.removeItem('adminToken');
             localStorage.removeItem('adminUser');
-            window.location.href = '/login.html';
+            window.location.href = '/entrar-admin.html';
         }
 
         // Verificar token periodicamente
@@ -709,9 +1050,10 @@
         }, 300000); // 5 minutos
 
         // Expor funções globalmente
-        window.viewPayment = viewPayment;
+        window.viewPayment = viewPaymentDetails;
         window.markAsPaid = markAsPaid;
         window.deletePayment = deletePayment;
+        window.viewPaymentDetails = viewPaymentDetails;
     </script>
 </body>
 </html>

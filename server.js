@@ -1,5 +1,6 @@
 const express = require('express');
 const axios = require('axios');
+const adminSystem = require('./admin-system');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -28,10 +29,11 @@ app.use((req, res, next) => {
 app.get('/health', (req, res) => {
     res.json({
         status: 'online',
-        service: 'TikTok PIX API',
+        service: 'TikTok PIX API + Admin',
         environment: process.env.NODE_ENV || 'production',
         timestamp: new Date().toISOString(),
-        version: '1.0.0'
+        version: '1.0.0',
+        admin: 'active'
     });
 });
 
@@ -45,6 +47,16 @@ app.get('/pagamento', (req, res) => {
     res.sendFile(__dirname + '/pagamento.html');
 });
 
+// ROTA DO PAINEL ADMIN
+app.get('/admin.html', (req, res) => {
+    res.sendFile(__dirname + '/admin.html');
+});
+
+// ROTA DO LOGIN ADMIN
+app.get('/entrar-admin.html', (req, res) => {
+    res.sendFile(__dirname + '/entrar-admin.html');
+});
+
 // TESTE DA API
 app.get('/api/test', (req, res) => {
     res.json({
@@ -53,6 +65,7 @@ app.get('/api/test', (req, res) => {
         server: 'Render',
         url: 'https://pagamento-cgzk.onrender.com',
         plumify: 'Conectado',
+        admin: 'Ativo',
         timestamp: new Date().toISOString()
     });
 });
@@ -165,8 +178,35 @@ app.post('/api/pix/create', async (req, res) => {
                 `https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=png&data=${encodeURIComponent(result.transaction.pix_code)}`;
         }
         
-        console.log('🎯 PIX gerado com sucesso!');
+        console.log('🎯 PIX gerado com sucesso! ID:', result.transaction.id);
         
+        // 📋 REGISTRAR NO SISTEMA ADMIN (ASSÍNCRONO - NÃO BLOQUEIA)
+        setTimeout(async () => {
+            try {
+                const paymentData = {
+                    id: result.transaction.id,
+                    transactionId: data.id || result.transaction.id,
+                    customerName: customerName.trim(),
+                    customerEmail: customerEmail.trim(),
+                    customerCpf: cpfClean,
+                    amount: 21.67,
+                    status: 'pending',
+                    pixCode: result.transaction.pix_code || '',
+                    pixUrl: result.transaction.pix_url || '',
+                    createdAt: new Date().toISOString()
+                };
+                
+                const registered = adminSystem.addPayment(paymentData);
+                if (registered) {
+                    console.log(`✅ Pagamento ${result.transaction.id} registrado no admin`);
+                }
+            } catch (adminError) {
+                console.error('❌ Erro ao registrar no admin:', adminError);
+                // Não falha o PIX por causa do admin
+            }
+        }, 100);
+        
+        // ENVIAR RESPOSTA PARA O FRONTEND
         res.json(result);
         
     } catch (error) {
@@ -192,7 +232,207 @@ app.post('/api/pix/create', async (req, res) => {
     }
 });
 
-// ROTA PARA VERIFICAR STATUS DO PIX
+// ==================== ADMIN SYSTEM API ====================
+
+// Middleware de autenticação
+const authenticateAdmin = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+        console.log('❌ Nenhum token fornecido');
+        return res.status(401).json({ 
+            success: false, 
+            error: 'Token de autenticação necessário' 
+        });
+    }
+    
+    const token = authHeader.replace('Bearer ', '');
+    
+    if (!adminSystem.validateToken(token)) {
+        return res.status(401).json({ 
+            success: false, 
+            error: 'Token inválido ou expirado' 
+        });
+    }
+    
+    next();
+};
+
+// API Login do Admin
+app.post('/api/admin-system/login', (req, res) => {
+    const { username, password } = req.body;
+    
+    console.log('🔐 Tentativa de login admin:', username);
+    
+    if (adminSystem.validateLogin(username, password)) {
+        res.json({
+            success: true,
+            message: 'Login realizado com sucesso!',
+            token: adminSystem.ADMIN_CONFIG.secret,
+            user: {
+                username: username,
+                role: 'admin',
+                lastLogin: new Date().toISOString()
+            }
+        });
+    } else {
+        res.status(401).json({
+            success: false,
+            error: 'Credenciais inválidas'
+        });
+    }
+});
+
+// Dashboard do admin
+app.get('/api/admin-system/dashboard', authenticateAdmin, (req, res) => {
+    try {
+        const stats = adminSystem.getStats();
+        const recentPayments = adminSystem.getRecentPayments(10);
+        
+        res.json({
+            success: true,
+            data: {
+                totalRevenue: parseFloat(stats.totalRevenue),
+                totalPayments: stats.totalPayments,
+                pendingPayments: stats.pendingPayments,
+                totalUsers: stats.totalUsers,
+                recentPayments: recentPayments,
+                chartData: stats.chartData,
+                serverInfo: {
+                    url: 'https://pagamento-cgzk.onrender.com',
+                    status: 'online',
+                    uptime: process.uptime(),
+                    timestamp: new Date().toISOString()
+                }
+            }
+        });
+    } catch (error) {
+        console.error('❌ Erro no dashboard:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao carregar dashboard'
+        });
+    }
+});
+
+// Listar todos os pagamentos
+app.get('/api/admin-system/payments', authenticateAdmin, (req, res) => {
+    try {
+        const filter = req.query.status || 'all';
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        
+        const result = adminSystem.getAllPayments(filter, page, limit);
+        
+        res.json({
+            success: true,
+            payments: result.payments,
+            pagination: result.pagination
+        });
+    } catch (error) {
+        console.error('❌ Erro ao listar pagamentos:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao carregar pagamentos'
+        });
+    }
+});
+
+// Atualizar status do pagamento
+app.post('/api/admin-system/payments/:id/paid', authenticateAdmin, (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if (adminSystem.updatePaymentStatus(id, 'paid')) {
+            res.json({
+                success: true,
+                message: 'Pagamento marcado como pago!'
+            });
+        } else {
+            res.status(404).json({
+                success: false,
+                error: 'Pagamento não encontrado'
+            });
+        }
+    } catch (error) {
+        console.error('❌ Erro ao atualizar pagamento:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao atualizar pagamento'
+        });
+    }
+});
+
+// Excluir pagamento
+app.delete('/api/admin-system/payments/:id', authenticateAdmin, (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if (adminSystem.deletePayment(id)) {
+            res.json({
+                success: true,
+                message: 'Pagamento excluído com sucesso!'
+            });
+        } else {
+            res.status(404).json({
+                success: false,
+                error: 'Pagamento não encontrado'
+            });
+        }
+    } catch (error) {
+        console.error('❌ Erro ao excluir pagamento:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao excluir pagamento'
+        });
+    }
+});
+
+// Exportar dados
+app.get('/api/admin-system/export', authenticateAdmin, (req, res) => {
+    try {
+        const db = adminSystem.getDatabase();
+        const format = req.query.format || 'json';
+        
+        res.json({
+            success: true,
+            data: db,
+            exportedAt: new Date().toISOString(),
+            count: db.payments.length
+        });
+    } catch (error) {
+        console.error('❌ Erro ao exportar dados:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao exportar dados'
+        });
+    }
+});
+
+// Limpar dados
+app.post('/api/admin-system/clear', authenticateAdmin, (req, res) => {
+    try {
+        if (adminSystem.clearDatabase()) {
+            res.json({
+                success: true,
+                message: 'Banco de dados limpo com sucesso!'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: 'Erro ao limpar banco de dados'
+            });
+        }
+    } catch (error) {
+        console.error('❌ Erro ao limpar dados:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao limpar dados'
+        });
+    }
+});
+
+// ROTA PARA VERIFICAR STATUS DO PIX (OPCIONAL)
 app.get('/api/pix/status/:id', async (req, res) => {
     try {
         const response = await axios.get(
@@ -218,12 +458,6 @@ app.get('/api/pix/status/:id', async (req, res) => {
     }
 });
 
-// ROTA PARA WEBHOOK
-app.post('/webhook/plumify', (req, res) => {
-    console.log('📩 Webhook recebido:', req.body);
-    res.json({ received: true });
-});
-
 // ROTA PARA TODAS AS OUTRAS REQUESTS - SERVIR ARQUIVOS ESTÁTICOS
 app.get('*', (req, res) => {
     // Tenta servir arquivos estáticos primeiro
@@ -238,141 +472,19 @@ app.get('*', (req, res) => {
 // INICIAR SERVIDOR
 app.listen(PORT, () => {
     console.log(`
-    🚀 TIKTOK PIX API - PRODUÇÃO
-    =================================
+    🚀 TIKTOK PIX API - PRODUÇÃO COM ADMIN
+    ==========================================
     ✅ Servidor iniciado na porta: ${PORT}
     🌐 URL: https://pagamento-cgzk.onrender.com
     💰 Página principal: /pagamento
+    👑 Admin login: /entrar-admin.html
+    👑 Admin panel: /admin.html
     📊 Health: /health
     💰 API PIX: /api/pix/create
+    🔐 Admin API: /api/admin-system/*
+    📁 Admin DB: admin-database.json
     🕐 ${new Date().toISOString()}
-    =================================
+    ==========================================
     `);
 });
-// ==================== ADMIN SYSTEM (APENAS ADICIONE ISSO NO FINAL) ====================
-
-// Importar o sistema admin separado
-const adminSystem = require('./admin-system');
-
-// Rota para o painel admin (NOME DIFERENTE!)
-app.get('/painel-admin.html', (req, res) => {
-    res.sendFile(__dirname + '/painel-admin.html');
-});
-
-// Rota para login do admin (NOME DIFERENTE!)
-app.get('/entrar-admin.html', (req, res) => {
-    res.sendFile(__dirname + '/entrar-admin.html');
-});
-
-// API Login do Admin
-app.post('/api/admin-system/login', (req, res) => {
-    const { username, password } = req.body;
-    
-    console.log('🔐 Login admin tentado:', username);
-    
-    if (adminSystem.validateLogin(username, password)) {
-        res.json({
-            success: true,
-            message: 'Login realizado!',
-            token: adminSystem.ADMIN_CONFIG.secret,
-            user: {
-                username: username,
-                role: 'admin'
-            }
-        });
-    } else {
-        res.status(401).json({
-            success: false,
-            error: 'Credenciais inválidas'
-        });
-    }
-});
-
-// API Dashboard do Admin
-app.get('/api/admin-system/dashboard', (req, res) => {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    
-    if (!adminSystem.validateToken(token)) {
-        return res.status(401).json({ error: 'Não autorizado' });
-    }
-    
-    const stats = adminSystem.getStats();
-    const recentPayments = adminSystem.getRecentPayments(10);
-    
-    res.json({
-        success: true,
-        data: {
-            stats: stats,
-            recentPayments: recentPayments,
-            serverInfo: {
-                url: 'https://pagamento-cgzk.onrender.com',
-                status: 'online',
-                timestamp: new Date().toISOString()
-            }
-        }
-    });
-});
-
-// API para listar pagamentos
-app.get('/api/admin-system/payments', (req, res) => {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    
-    if (!adminSystem.validateToken(token)) {
-        return res.status(401).json({ error: 'Não autorizado' });
-    }
-    
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const status = req.query.status || 'all';
-    
-    // Simulação de paginação
-    const db = adminSystem.getDatabase();
-    let payments = db.payments;
-    
-    if (status !== 'all') {
-        payments = payments.filter(p => p.status === status);
-    }
-    
-    payments = payments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    
-    const start = (page - 1) * limit;
-    const paginated = payments.slice(start, start + limit);
-    
-    res.json({
-        success: true,
-        payments: paginated,
-        pagination: {
-            page: page,
-            limit: limit,
-            total: payments.length,
-            pages: Math.ceil(payments.length / limit)
-        }
-    });
-});
-
-// NO FINAL da rota /api/pix/create, ANTES do res.json(), adicione:
-app.post('/api/pix/create', async (req, res) => {
-    // ... seu código atual ...
-    
-    // DEPOIS de gerar o PIX na Plumify, ANTES de responder:
-    
-    // Capturar dados para o admin
-    const paymentData = {
-        id: result.transaction.id || `PIX_${Date.now()}`,
-        customerName: customerName.trim(),
-        customerEmail: customerEmail.trim(),
-        customerCpf: cpfClean,
-        amount: 21.67,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        pixCode: result.transaction.pix_code || '',
-        pixUrl: result.transaction.pix_url || ''
-    };
-    
-    // Registrar no sistema admin (não bloqueia a resposta)
-    setTimeout(() => {
-        adminSystem.addPayment(paymentData);
-    }, 100);
-    
-    // ... continue com res.json(result) ...
-});
+[file content end]
