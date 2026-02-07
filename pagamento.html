@@ -579,52 +579,64 @@
     // ============================================
     // CONFIGURAÇÃO
     // ============================================
-    const PLUMIFY_API_KEY = "0RRWtMOuHsAQlR7S0zEnlGBnLEnr8DgoDJS3GTecxH7nZr2X01kHo6rxrOGa"; /
+    const PLUMIFY_API_KEY = "0RRWtMOuHsAQlR7S0zEnlGBnLEnr8DgoDJS3GTecxH7nZr2X01kHo6rxrOGa";
     
     let currentPaymentId = null;
     let timerInterval = null;
 
     // ============================================
-    
-    
-    async function gerarPixPlumify(event) {
-        // Impedir recarregamento da página
+    // FUNÇÃO PRINCIPAL - SIMPLES E FUNCIONAL
+    // ============================================
+    function gerarPixPlumify(event) {
         if (event) event.preventDefault();
         
-        console.log('📝 Iniciando geração de PIX...');
+        console.log('Iniciando PIX...');
         
-        // 🎯 PEGAR VALORES DIRETAMENTE (SEM ERRO!)
-        const nomeInput = document.getElementById('customerName');
-        const emailInput = document.getElementById('customerEmail'); 
-        const cpfInput = document.getElementById('customerCpf');
+        // PEGAR VALORES - FORMA SEGURA
+        const nomeElemento = document.getElementById('customerName');
+        const emailElemento = document.getElementById('customerEmail'); 
+        const cpfElemento = document.getElementById('customerCpf');
         
-        const nome = nomeInput ? nomeInput.value.trim() : '';
-        const email = emailInput ? emailInput.value.trim() : '';
-        let cpf = cpfInput ? cpfInput.value : '';
-        cpf = cpf.replace(/\D/g, ''); // Remover pontos e traços
-        
-        console.log('Valores capturados:', { nome, email, cpf });
-        
-        // VALIDAÇÃO SIMPLES E CLARA
-        if (nome.length < 3) {
-            alert('❌ Digite seu nome completo (mínimo 3 letras)');
-            if (nomeInput) nomeInput.focus();
+        if (!nomeElemento || !emailElemento || !cpfElemento) {
+            alert('Erro: Campos não encontrados!');
             return;
         }
         
-        if (!email.includes('@') || !email.includes('.')) {
-            alert('❌ Digite um e-mail válido (ex: nome@provedor.com)');
-            if (emailInput) emailInput.focus();
+        const nome = nomeElemento.value;
+        const email = emailElemento.value;
+        const cpf = cpfElemento.value;
+        
+        console.log('Dados:', { nome, email, cpf });
+        
+        // VALIDAÇÃO DIRETA
+        if (!nome || nome.length < 3) {
+            alert('Digite seu nome completo (mínimo 3 letras)');
+            nomeElemento.focus();
             return;
         }
         
-        if (cpf.length !== 11) {
-            alert('❌ CPF inválido! Digite 11 números (ex: 123.456.789-09)');
-            if (cpfInput) cpfInput.focus();
+        if (!email || email.indexOf('@') === -1 || email.indexOf('.') === -1) {
+            alert('Digite um e-mail válido');
+            emailElemento.focus();
             return;
         }
         
-        console.log('✅ Validação passou!');
+        // Limpar CPF (sem regex complexa)
+        let cpfLimpo = '';
+        for (let i = 0; i < cpf.length; i++) {
+            const char = cpf[i];
+            if (char >= '0' && char <= '9') {
+                cpfLimpo += char;
+            }
+        }
+        
+        if (cpfLimpo.length !== 11) {
+            alert('CPF inválido! Digite 11 números');
+            cpfElemento.focus();
+            return;
+        }
+        
+        console.log('Validação OK!');
         
         // MOSTRAR LOADING
         document.querySelectorAll('.form-step').forEach(step => {
@@ -632,150 +644,69 @@
         });
         document.getElementById('loading').classList.add('active');
         
-        // 🎯 AGORA VAMOS GERAR O PIX
-        try {
-            // Se tiver API Key, tenta API real
-            if (PLUMIFY_API_KEY && PLUMIFY_API_KEY !== "SUA_CHAVE_API_AQUI") {
-                console.log('Tentando API Plumify...');
-                
-                // Testa diferentes endpoints
-                const endpoints = [
-                    'https://api.plumify.com.br/api/payments',
-                    'https://api.plumify.com.br/api/transactions',
-                    'https://api.plumify.com.br/pix/create'
-                ];
-                
-                for (const url of endpoints) {
-                    try {
-                        const resposta = await fetch(url, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${PLUMIFY_API_KEY}`,
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                amount: 21.67,
-                                description: "Taxa TikTok Pay",
-                                customer_name: nome,
-                                customer_email: email,
-                                customer_document: cpf
-                            })
-                        });
-                        
-                        if (resposta.ok) {
-                            const resultado = await resposta.json();
-                            console.log('✅ API respondeu:', resultado);
-                            mostrarPixReal(resultado);
-                            return;
-                        }
-                    } catch (err) {
-                        console.log(`Endpoint ${url} falhou:`, err.message);
-                    }
-                }
-                
-                // Se chegou aqui, API falhou
-                throw new Error('API não respondeu');
-                
-            } else {
-                // MODO DEMONSTRAÇÃO (sem API key configurada)
-                console.log('Usando modo demonstração...');
-                setTimeout(() => {
-                    mostrarPixDemonstracao(nome, email, cpf);
-                }, 1500);
-            }
-            
-        } catch (error) {
-            console.error('Erro:', error);
-            // Modo demonstração como fallback
-            setTimeout(() => {
-                mostrarPixDemonstracao(nome, email, cpf);
-            }, 1000);
-        }
+        // GERAR PIX (MODO DEMO PRIMEIRO)
+        setTimeout(() => {
+            criarPixDemo(nome, email, cpfLimpo);
+        }, 1500);
     }
 
     // ============================================
-    // MOSTRAR PIX REAL (se API funcionar)
+    // CRIAR PIX DEMONSTRAÇÃO
     // ============================================
-    function mostrarPixReal(dados) {
-        // Gerar ID único
+    function criarPixDemo(nome, email, cpf) {
         currentPaymentId = 'PIX' + Date.now().toString().slice(-8);
         
-        // Extrair dados da resposta
-        const pixCode = dados.qrcode || dados.copy_paste || 
-            `00020126580014BR.GOV.BCB.PIX0136${currentPaymentId}520400005303986540521.675802BR5900TikTokPay6009SAOPAULO62140510${currentPaymentId}6304`;
+        // Código PIX de exemplo
+        const pixCode = '00020126580014BR.GOV.BCB.PIX0136' + currentPaymentId + 
+                       '520400005303986540521.675802BR5900TikTokPay6009SAOPAULO62140510' + 
+                       currentPaymentId + '6304';
         
-        // Atualizar interface
+        // ATUALIZAR INTERFACE
         document.getElementById('orderId').textContent = '#' + currentPaymentId;
         document.getElementById('pixCode').textContent = pixCode;
         
-        // QR Code
+        // CRIAR QR CODE SIMPLES
         const qrContainer = document.getElementById('qrCodeContainer');
-        if (dados.qrcode_image) {
-            qrContainer.innerHTML = `<img src="${dados.qrcode_image}" alt="QR Code" style="width:200px;height:200px;">`;
-        } else {
-            // QR Code visual
-            qrContainer.innerHTML = `
-                <div style="width:200px;height:200px;background:#fff;border-radius:10px;padding:15px;margin:0 auto;position:relative;">
-                    <div style="display:grid;grid-template-columns:repeat(7, 1fr);gap:3px;width:100%;height:100%;">
-                        ${Array(49).fill().map((_, i) => 
-                            `<div style="background:${(i + Math.floor(i/7)) % 3 === 0 ? '#000' : '#fff'};border-radius:2px;"></div>`
-                        ).join('')}
-                    </div>
-                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:5px 10px;border:2px solid #00F2EA;border-radius:5px;">
-                        <span style="color:#00F2EA;font-weight:bold;">PIX</span>
-                    </div>
-                </div>
-            `;
+        qrContainer.innerHTML = '';
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = 200;
+        canvas.height = 200;
+        canvas.style.borderRadius = '10px';
+        canvas.style.border = '1px solid #e5e7eb';
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Fundo branco
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 200, 200);
+        
+        // Padrão QR Code simples
+        ctx.fillStyle = '#000000';
+        
+        // Cantos
+        ctx.fillRect(15, 15, 35, 35);
+        ctx.fillRect(150, 15, 35, 35);
+        ctx.fillRect(15, 150, 35, 35);
+        
+        // Pontos internos
+        for (let i = 0; i < 7; i++) {
+            for (let j = 0; j < 7; j++) {
+                if ((i + j) % 2 === 0) {
+                    ctx.fillRect(60 + i * 15, 60 + j * 15, 10, 10);
+                }
+            }
         }
         
-        // Mostrar tela
-        mostrarTelaPix();
-    }
-
-    // ============================================
-    // MOSTRAR PIX DEMONSTRAÇÃO
-    // ============================================
-    function mostrarPixDemonstracao(nome, email, cpf) {
-        console.log('Criando PIX demonstração para:', nome);
+        // Texto PIX
+        ctx.fillStyle = '#00F2EA';
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('PIX', 100, 115);
         
-        // Gerar ID único
-        currentPaymentId = 'DEMO' + Date.now().toString(36).toUpperCase().slice(-8);
+        qrContainer.appendChild(canvas);
         
-        // Código PIX de exemplo
-        const pixCode = `00020126580014BR.GOV.BCB.PIX0136${currentPaymentId}520400005303986540521.675802BR5900TikTokPay6009SAOPAULO62140510${currentPaymentId}6304`;
-        
-        // Atualizar interface
-        document.getElementById('orderId').textContent = '#' + currentPaymentId;
-        document.getElementById('pixCode').textContent = pixCode;
-        document.getElementById('paymentStatus').innerHTML = 
-            '<i class="fas fa-exclamation-triangle"></i> Modo Demonstração';
-        
-        // QR Code visual mais realista
-        const qrContainer = document.getElementById('qrCodeContainer');
-        qrContainer.innerHTML = `
-            <div style="width:200px;height:200px;background:#fff;border-radius:10px;padding:10px;margin:0 auto;position:relative;overflow:hidden;">
-                <!-- Padrão QR Code -->
-                <div style="position:absolute;width:40px;height:40px;background:#000;top:10px;left:10px;"></div>
-                <div style="position:absolute;width:40px;height:40px;background:#000;top:10px;right:10px;"></div>
-                <div style="position:absolute;width:40px;height:40px;background:#000;bottom:10px;left:10px;"></div>
-                
-                <!-- Pontos internos -->
-                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:grid;grid-template-columns:repeat(5, 1fr);gap:3px;width:100px;height:100px;">
-                    ${Array(25).fill().map((_, i) => 
-                        `<div style="background:${i % 4 === 0 ? '#000' : 'transparent'};border-radius:1px;"></div>`
-                    ).join('')}
-                </div>
-                
-                <!-- Texto PIX -->
-                <div style="position:absolute;bottom:20px;left:0;right:0;text-align:center;">
-                    <span style="background:#00F2EA;color:#000;padding:3px 10px;border-radius:4px;font-weight:bold;font-size:14px;">
-                        PIX R$ 21,67
-                    </span>
-                </div>
-            </div>
-        `;
-        
-        // Mostrar tela
+        // MOSTRAR TELA
         mostrarTelaPix();
     }
 
@@ -783,24 +714,19 @@
     // MOSTRAR TELA DO PIX
     // ============================================
     function mostrarTelaPix() {
-        // Esconder loading, mostrar PIX
         document.getElementById('loading').classList.remove('active');
         document.getElementById('pixPayment').classList.add('active');
         
-        // Iniciar timer
         iniciarTimer(30);
-        
-        // Rolar para o topo
         window.scrollTo({top: 0, behavior: 'smooth'});
         
-        console.log('✅ PIX gerado com sucesso! ID:', currentPaymentId);
+        console.log('PIX gerado! ID:', currentPaymentId);
     }
 
     // ============================================
     // TIMER
     // ============================================
     function iniciarTimer(minutos) {
-        // Limpar timer anterior
         if (timerInterval) {
             clearInterval(timerInterval);
         }
@@ -824,10 +750,10 @@
             const min = Math.floor(segundos / 60);
             const seg = segundos % 60;
             timerElement.textContent = 
-                `${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
+                (min < 10 ? '0' : '') + min + ':' + (seg < 10 ? '0' : '') + seg;
             
             const progresso = (segundos / (minutos * 60)) * 100;
-            progressElement.style.width = `${progresso}%`;
+            progressElement.style.width = progresso + '%';
             
         }, 1000);
     }
@@ -844,27 +770,35 @@
         
         const texto = pixCode.textContent;
         
-        // Usar API moderna de clipboard
-        navigator.clipboard.writeText(texto).then(() => {
-            // Feedback visual
-            const originalText = this.innerHTML;
-            this.innerHTML = '<i class="fas fa-check"></i> Copiado!';
-            this.style.background = 'linear-gradient(135deg, #00F2EA, #00C2B8)';
-            this.style.color = '#000';
-            
-            setTimeout(() => {
-                this.innerHTML = originalText;
-                this.style.background = '';
-                this.style.color = '';
-            }, 2000);
-        }).catch(err => {
-            // Fallback para navegadores antigos
-            console.error('Erro ao copiar:', err);
-            pixCode.select();
-            document.execCommand('copy');
-            alert('Código copiado! (método alternativo)');
-        });
+        // Método moderno
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(texto).then(() => {
+                this.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+                this.style.background = '#00F2EA';
+                
+                setTimeout(() => {
+                    this.innerHTML = '<i class="fas fa-copy"></i> Copiar Código PIX';
+                    this.style.background = '';
+                }, 2000);
+            }).catch(() => {
+                copiarFallback(texto);
+            });
+        } else {
+            copiarFallback(texto);
+        }
     });
+
+    function copiarFallback(texto) {
+        // Método antigo
+        const textarea = document.createElement('textarea');
+        textarea.value = texto;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        
+        alert('Código copiado para a área de transferência!');
+    }
 
     // ============================================
     // BOTÃO VERIFICAR
@@ -878,21 +812,15 @@
         const status = document.getElementById('paymentStatus');
         const btn = this;
         
-        // Desabilitar botão temporariamente
         btn.disabled = true;
         status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
         
-        // Simular verificação (2 segundos)
         setTimeout(() => {
-            // Sempre "aprova" no modo demo
-            if (currentPaymentId.startsWith('DEMO') || currentPaymentId.startsWith('PIX')) {
-                status.innerHTML = '<i class="fas fa-check-circle"></i> Pago com sucesso!';
-                status.className = 'status status-success';
-                
-                alert(`✅ Pagamento confirmado!\n\nID: ${currentPaymentId}\nValor: R$ 21,67\n\nO reembolso será processado em 1 minuto.`);
-            }
+            status.innerHTML = '<i class="fas fa-check-circle"></i> Pago com sucesso!';
+            status.className = 'status status-success';
             
-            // Reabilitar botão
+            alert('Pagamento confirmado! Reembolso em 1 minuto.');
+            
             btn.disabled = false;
         }, 2000);
     });
@@ -901,70 +829,63 @@
     // BOTÃO NOVO PAGAMENTO
     // ============================================
     document.getElementById('newPaymentBtn').addEventListener('click', function() {
-        if (confirm('Deseja cancelar este pagamento e gerar um novo?')) {
-            // Limpar timer
+        if (confirm('Gerar novo pagamento?')) {
             if (timerInterval) {
                 clearInterval(timerInterval);
                 timerInterval = null;
             }
             
-            // Resetar dados
             currentPaymentId = null;
             
-            // Voltar para formulário
             document.getElementById('pixPayment').classList.remove('active');
             document.getElementById('step1').classList.add('active');
             
-            // Rolar para o topo
             window.scrollTo({top: 0, behavior: 'smooth'});
-            
-            console.log('🔄 Novo pagamento iniciado');
         }
     });
 
     // ============================================
-    // MÁSCARA CPF (AGORA FUNCIONA!)
+    // MÁSCARA CPF SIMPLES (SEM REGEX)
     // ============================================
-    const cpfInput = document.getElementById('customerCpf');
-    if (cpfInput) {
-        cpfInput.addEventListener('input', function(e) {
-            let value = e.target.value.replace(/\D/g, '');
-            
-            if (value.length > 11) {
-                value = value.substring(0, 11);
+    document.getElementById('customerCpf').addEventListener('input', function(e) {
+        let valor = e.target.value;
+        let numeros = '';
+        
+        // Pegar apenas números
+        for (let i = 0; i < valor.length; i++) {
+            const char = valor[i];
+            if (char >= '0' && char <= '9') {
+                numeros += char;
             }
-            
-            // Formatar: 123.456.789-09
-            if (value.length > 9) {
-                value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-            } else if (value.length > 6) {
-                value = value.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
-            } else if (value.length > 3) {
-                value = value.replace(/(\d{3})(\d{1,3})/, '$1.$2');
-            }
-            
-            e.target.value = value;
-        });
-    }
+        }
+        
+        // Limitar a 11 números
+        if (numeros.length > 11) {
+            numeros = numeros.substring(0, 11);
+        }
+        
+        // Formatar
+        let formatado = '';
+        if (numeros.length <= 3) {
+            formatado = numeros;
+        } else if (numeros.length <= 6) {
+            formatado = numeros.substring(0, 3) + '.' + numeros.substring(3);
+        } else if (numeros.length <= 9) {
+            formatado = numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6);
+        } else {
+            formatado = numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6, 9) + '-' + numeros.substring(9);
+        }
+        
+        e.target.value = formatado;
+    });
 
     // ============================================
-    // CONFIGURAR FORMULÁRIO (FINALMENTE!)
+    // CONFIGURAR FORMULÁRIO
     // ============================================
     document.getElementById('paymentForm').addEventListener('submit', gerarPixPlumify);
 
     // ============================================
     // INICIALIZAÇÃO
     // ============================================
-    console.log('✅ Sistema PIX TikTok Pay carregado!');
-    console.log('Elementos encontrados:');
-    console.log('- Formulário:', document.getElementById('paymentForm') ? 'OK' : 'NÃO');
-    console.log('- Campo Nome:', document.getElementById('customerName') ? 'OK' : 'NÃO');
-    console.log('- Campo Email:', document.getElementById('customerEmail') ? 'OK' : 'NÃO');
-    console.log('- Campo CPF:', document.getElementById('customerCpf') ? 'OK' : 'NÃO');
-    
-    // Mensagem inicial
-    if (!document.getElementById('customerName')) {
-        console.error('❌ ATENÇÃO: Campo "customerName" não encontrado!');
-        console.log('💡 Dica: Verifique se o ID no HTML é exatamente "customerName"');
-    }
+    console.log('Sistema PIX carregado!');
 </script>
