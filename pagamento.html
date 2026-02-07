@@ -592,36 +592,13 @@
         
         console.log('Iniciando PIX...');
         
-        // PEGAR VALORES - FORMA SEGURA
-        const nomeElemento = document.getElementById('customerName');
-        const emailElemento = document.getElementById('customerEmail'); 
-        const cpfElemento = document.getElementById('customerCpf');
+        // PEGAR VALORES
+        const nome = document.getElementById('customerName')?.value || '';
+        const email = document.getElementById('customerEmail')?.value || '';
+        const cpfElement = document.getElementById('customerCpf');
+        let cpf = cpfElement ? cpfElement.value : '';
         
-        if (!nomeElemento || !emailElemento || !cpfElemento) {
-            alert('Erro: Campos não encontrados!');
-            return;
-        }
-        
-        const nome = nomeElemento.value;
-        const email = emailElemento.value;
-        const cpf = cpfElemento.value;
-        
-        console.log('Dados:', { nome, email, cpf });
-        
-        // VALIDAÇÃO DIRETA
-        if (!nome || nome.length < 3) {
-            alert('Digite seu nome completo (mínimo 3 letras)');
-            nomeElemento.focus();
-            return;
-        }
-        
-        if (!email || email.indexOf('@') === -1 || email.indexOf('.') === -1) {
-            alert('Digite um e-mail válido');
-            emailElemento.focus();
-            return;
-        }
-        
-        // Limpar CPF (sem regex complexa)
+        // Limpar CPF (apenas números)
         let cpfLimpo = '';
         for (let i = 0; i < cpf.length; i++) {
             const char = cpf[i];
@@ -630,9 +607,24 @@
             }
         }
         
+        console.log('Dados:', { nome, email, cpf: cpfLimpo });
+        
+        // VALIDAÇÃO
+        if (!nome || nome.trim().length < 3) {
+            alert('Digite seu nome completo');
+            document.getElementById('customerName')?.focus();
+            return;
+        }
+        
+        if (!email || !email.includes('@')) {
+            alert('Digite um e-mail válido');
+            document.getElementById('customerEmail')?.focus();
+            return;
+        }
+        
         if (cpfLimpo.length !== 11) {
-            alert('CPF inválido! Digite 11 números');
-            cpfElemento.focus();
+            alert('CPF inválido! 11 números necessários');
+            document.getElementById('customerCpf')?.focus();
             return;
         }
         
@@ -642,9 +634,10 @@
         document.querySelectorAll('.form-step').forEach(step => {
             step.classList.remove('active');
         });
-        document.getElementById('loading').classList.add('active');
+        const loading = document.getElementById('loading');
+        if (loading) loading.classList.add('active');
         
-        // GERAR PIX (MODO DEMO PRIMEIRO)
+        // GERAR PIX
         setTimeout(() => {
             criarPixDemo(nome, email, cpfLimpo);
         }, 1500);
@@ -656,55 +649,54 @@
     function criarPixDemo(nome, email, cpf) {
         currentPaymentId = 'PIX' + Date.now().toString().slice(-8);
         
-        // Código PIX de exemplo
+        // Código PIX
         const pixCode = '00020126580014BR.GOV.BCB.PIX0136' + currentPaymentId + 
                        '520400005303986540521.675802BR5900TikTokPay6009SAOPAULO62140510' + 
                        currentPaymentId + '6304';
         
         // ATUALIZAR INTERFACE
-        document.getElementById('orderId').textContent = '#' + currentPaymentId;
-        document.getElementById('pixCode').textContent = pixCode;
+        const orderId = document.getElementById('orderId');
+        const pixCodeDisplay = document.getElementById('pixCode');
+        if (orderId) orderId.textContent = '#' + currentPaymentId;
+        if (pixCodeDisplay) pixCodeDisplay.textContent = pixCode;
         
-        // CRIAR QR CODE SIMPLES
+        // QR CODE
         const qrContainer = document.getElementById('qrCodeContainer');
-        qrContainer.innerHTML = '';
-        
-        const canvas = document.createElement('canvas');
-        canvas.width = 200;
-        canvas.height = 200;
-        canvas.style.borderRadius = '10px';
-        canvas.style.border = '1px solid #e5e7eb';
-        
-        const ctx = canvas.getContext('2d');
-        
-        // Fundo branco
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, 200, 200);
-        
-        // Padrão QR Code simples
-        ctx.fillStyle = '#000000';
-        
-        // Cantos
-        ctx.fillRect(15, 15, 35, 35);
-        ctx.fillRect(150, 15, 35, 35);
-        ctx.fillRect(15, 150, 35, 35);
-        
-        // Pontos internos
-        for (let i = 0; i < 7; i++) {
-            for (let j = 0; j < 7; j++) {
-                if ((i + j) % 2 === 0) {
-                    ctx.fillRect(60 + i * 15, 60 + j * 15, 10, 10);
+        if (qrContainer) {
+            qrContainer.innerHTML = '';
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 200;
+            canvas.style.borderRadius = '10px';
+            canvas.style.border = '1px solid #e5e7eb';
+            canvas.style.display = 'block';
+            canvas.style.margin = '0 auto';
+            
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, 200, 200);
+            
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(15, 15, 35, 35);
+            ctx.fillRect(150, 15, 35, 35);
+            ctx.fillRect(15, 150, 35, 35);
+            
+            for (let i = 0; i < 7; i++) {
+                for (let j = 0; j < 7; j++) {
+                    if ((i + j) % 2 === 0) {
+                        ctx.fillRect(60 + i * 15, 60 + j * 15, 10, 10);
+                    }
                 }
             }
+            
+            ctx.fillStyle = '#00F2EA';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('PIX', 100, 115);
+            
+            qrContainer.appendChild(canvas);
         }
-        
-        // Texto PIX
-        ctx.fillStyle = '#00F2EA';
-        ctx.font = 'bold 24px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('PIX', 100, 115);
-        
-        qrContainer.appendChild(canvas);
         
         // MOSTRAR TELA
         mostrarTelaPix();
@@ -714,13 +706,16 @@
     // MOSTRAR TELA DO PIX
     // ============================================
     function mostrarTelaPix() {
-        document.getElementById('loading').classList.remove('active');
-        document.getElementById('pixPayment').classList.add('active');
+        const loading = document.getElementById('loading');
+        const pixStep = document.getElementById('pixPayment');
+        
+        if (loading) loading.classList.remove('active');
+        if (pixStep) pixStep.classList.add('active');
         
         iniciarTimer(30);
         window.scrollTo({top: 0, behavior: 'smooth'});
         
-        console.log('PIX gerado! ID:', currentPaymentId);
+        console.log('PIX gerado!');
     }
 
     // ============================================
@@ -740,152 +735,222 @@
             
             if (segundos <= 0) {
                 clearInterval(timerInterval);
-                timerElement.textContent = '00:00';
-                progressElement.style.width = '0%';
-                document.getElementById('paymentStatus').innerHTML = 
-                    '<i class="fas fa-clock"></i> Código expirado';
+                if (timerElement) timerElement.textContent = '00:00';
+                if (progressElement) progressElement.style.width = '0%';
+                
+                const status = document.getElementById('paymentStatus');
+                if (status) status.innerHTML = '<i class="fas fa-clock"></i> Código expirado';
                 return;
             }
             
             const min = Math.floor(segundos / 60);
             const seg = segundos % 60;
-            timerElement.textContent = 
-                (min < 10 ? '0' : '') + min + ':' + (seg < 10 ? '0' : '') + seg;
             
-            const progresso = (segundos / (minutos * 60)) * 100;
-            progressElement.style.width = progresso + '%';
+            if (timerElement) {
+                timerElement.textContent = 
+                    (min < 10 ? '0' : '') + min + ':' + (seg < 10 ? '0' : '') + seg;
+            }
+            
+            if (progressElement) {
+                const progresso = (segundos / (minutos * 60)) * 100;
+                progressElement.style.width = progresso + '%';
+            }
             
         }, 1000);
     }
 
     // ============================================
-    // BOTÃO COPIAR
+    // FUNÇÃO DE COPIAR (SE O BOTÃO EXISTIR)
     // ============================================
-    document.getElementById('copy-button').addEventListener('click', function() {
-        const pixCode = document.getElementById('pixCode');
-        if (!pixCode || pixCode.textContent === 'Aguardando geração...') {
-            alert('Gere um código PIX primeiro!');
-            return;
-        }
-        
-        const texto = pixCode.textContent;
-        
-        // Método moderno
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(texto).then(() => {
-                this.innerHTML = '<i class="fas fa-check"></i> Copiado!';
-                this.style.background = '#00F2EA';
+    function configurarBotaoCopiar() {
+        const copyButton = document.getElementById('copy-button');
+        if (copyButton) {
+            copyButton.addEventListener('click', function() {
+                const pixCode = document.getElementById('pixCode');
+                if (!pixCode || pixCode.textContent === 'Aguardando geração...') {
+                    alert('Gere um código PIX primeiro!');
+                    return;
+                }
                 
-                setTimeout(() => {
-                    this.innerHTML = '<i class="fas fa-copy"></i> Copiar Código PIX';
-                    this.style.background = '';
-                }, 2000);
-            }).catch(() => {
-                copiarFallback(texto);
+                const texto = pixCode.textContent;
+                
+                // Tentar método moderno
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(texto).then(() => {
+                        const original = this.innerHTML;
+                        this.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+                        this.style.background = '#00F2EA';
+                        
+                        setTimeout(() => {
+                            this.innerHTML = original;
+                            this.style.background = '';
+                        }, 2000);
+                    });
+                } else {
+                    // Método fallback
+                    const textarea = document.createElement('textarea');
+                    textarea.value = texto;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    alert('Código copiado!');
+                }
             });
         } else {
-            copiarFallback(texto);
+            console.log('Botão copy-button não encontrado - pulando configuração');
         }
-    });
-
-    function copiarFallback(texto) {
-        // Método antigo
-        const textarea = document.createElement('textarea');
-        textarea.value = texto;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        
-        alert('Código copiado para a área de transferência!');
     }
 
     // ============================================
-    // BOTÃO VERIFICAR
+    // CONFIGURAR BOTÃO VERIFICAR (SE EXISTIR)
     // ============================================
-    document.getElementById('checkPaymentBtn').addEventListener('click', function() {
-        if (!currentPaymentId) {
-            alert('Gere um PIX primeiro!');
-            return;
-        }
-        
-        const status = document.getElementById('paymentStatus');
-        const btn = this;
-        
-        btn.disabled = true;
-        status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
-        
-        setTimeout(() => {
-            status.innerHTML = '<i class="fas fa-check-circle"></i> Pago com sucesso!';
-            status.className = 'status status-success';
-            
-            alert('Pagamento confirmado! Reembolso em 1 minuto.');
-            
-            btn.disabled = false;
-        }, 2000);
-    });
-
-    // ============================================
-    // BOTÃO NOVO PAGAMENTO
-    // ============================================
-    document.getElementById('newPaymentBtn').addEventListener('click', function() {
-        if (confirm('Gerar novo pagamento?')) {
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-            }
-            
-            currentPaymentId = null;
-            
-            document.getElementById('pixPayment').classList.remove('active');
-            document.getElementById('step1').classList.add('active');
-            
-            window.scrollTo({top: 0, behavior: 'smooth'});
-        }
-    });
-
-    // ============================================
-    // MÁSCARA CPF SIMPLES (SEM REGEX)
-    // ============================================
-    document.getElementById('customerCpf').addEventListener('input', function(e) {
-        let valor = e.target.value;
-        let numeros = '';
-        
-        // Pegar apenas números
-        for (let i = 0; i < valor.length; i++) {
-            const char = valor[i];
-            if (char >= '0' && char <= '9') {
-                numeros += char;
-            }
-        }
-        
-        // Limitar a 11 números
-        if (numeros.length > 11) {
-            numeros = numeros.substring(0, 11);
-        }
-        
-        // Formatar
-        let formatado = '';
-        if (numeros.length <= 3) {
-            formatado = numeros;
-        } else if (numeros.length <= 6) {
-            formatado = numeros.substring(0, 3) + '.' + numeros.substring(3);
-        } else if (numeros.length <= 9) {
-            formatado = numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6);
+    function configurarBotaoVerificar() {
+        const checkButton = document.getElementById('checkPaymentBtn');
+        if (checkButton) {
+            checkButton.addEventListener('click', function() {
+                if (!currentPaymentId) {
+                    alert('Gere um PIX primeiro!');
+                    return;
+                }
+                
+                const status = document.getElementById('paymentStatus');
+                const btn = this;
+                
+                btn.disabled = true;
+                if (status) status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
+                
+                setTimeout(() => {
+                    if (status) {
+                        status.innerHTML = '<i class="fas fa-check-circle"></i> Pago com sucesso!';
+                        status.className = 'status status-success';
+                    }
+                    
+                    alert('Pagamento confirmado! Reembolso em 1 minuto.');
+                    btn.disabled = false;
+                }, 2000);
+            });
         } else {
-            formatado = numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6, 9) + '-' + numeros.substring(9);
+            console.log('Botão checkPaymentBtn não encontrado');
         }
-        
-        e.target.value = formatado;
-    });
+    }
+
+    // ============================================
+    // CONFIGURAR BOTÃO NOVO PAGAMENTO (SE EXISTIR)
+    // ============================================
+    function configurarBotaoNovo() {
+        const newButton = document.getElementById('newPaymentBtn');
+        if (newButton) {
+            newButton.addEventListener('click', function() {
+                if (confirm('Gerar novo pagamento?')) {
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    }
+                    
+                    currentPaymentId = null;
+                    
+                    const pixStep = document.getElementById('pixPayment');
+                    const step1 = document.getElementById('step1');
+                    
+                    if (pixStep) pixStep.classList.remove('active');
+                    if (step1) step1.classList.add('active');
+                    
+                    window.scrollTo({top: 0, behavior: 'smooth'});
+                }
+            });
+        } else {
+            console.log('Botão newPaymentBtn não encontrado');
+        }
+    }
+
+    // ============================================
+    // MÁSCARA CPF
+    // ============================================
+    function configurarMascaraCPF() {
+        const cpfInput = document.getElementById('customerCpf');
+        if (cpfInput) {
+            cpfInput.addEventListener('input', function(e) {
+                let valor = e.target.value;
+                let numeros = '';
+                
+                for (let i = 0; i < valor.length; i++) {
+                    const char = valor[i];
+                    if (char >= '0' && char <= '9') {
+                        numeros += char;
+                    }
+                }
+                
+                if (numeros.length > 11) {
+                    numeros = numeros.substring(0, 11);
+                }
+                
+                let formatado = '';
+                if (numeros.length <= 3) {
+                    formatado = numeros;
+                } else if (numeros.length <= 6) {
+                    formatado = numeros.substring(0, 3) + '.' + numeros.substring(3);
+                } else if (numeros.length <= 9) {
+                    formatado = numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6);
+                } else {
+                    formatado = numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + 
+                                numeros.substring(6, 9) + '-' + numeros.substring(9);
+                }
+                
+                e.target.value = formatado;
+            });
+        }
+    }
 
     // ============================================
     // CONFIGURAR FORMULÁRIO
     // ============================================
-    document.getElementById('paymentForm').addEventListener('submit', gerarPixPlumify);
+    function configurarFormulario() {
+        const form = document.getElementById('paymentForm');
+        if (form) {
+            form.addEventListener('submit', gerarPixPlumify);
+            console.log('Formulário configurado!');
+        } else {
+            console.error('Formulário paymentForm não encontrado!');
+        }
+    }
 
     // ============================================
-    // INICIALIZAÇÃO
+    // INICIALIZAÇÃO QUANDO A PÁGINA CARREGAR
     // ============================================
-    console.log('Sistema PIX carregado!');
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Inicializando sistema PIX...');
+        
+        configurarFormulario();
+        configurarMascaraCPF();
+        configurarBotaoCopiar();
+        configurarBotaoVerificar();
+        configurarBotaoNovo();
+        
+        console.log('Sistema PIX pronto!');
+        console.log('Elementos encontrados:');
+        console.log('- customerName:', document.getElementById('customerName') ? 'OK' : 'NÃO');
+        console.log('- customerEmail:', document.getElementById('customerEmail') ? 'OK' : 'NÃO');
+        console.log('- customerCpf:', document.getElementById('customerCpf') ? 'OK' : 'NÃO');
+        console.log('- copy-button:', document.getElementById('copy-button') ? 'OK' : 'NÃO');
+        console.log('- checkPaymentBtn:', document.getElementById('checkPaymentBtn') ? 'OK' : 'NÃO');
+        console.log('- newPaymentBtn:', document.getElementById('newPaymentBtn') ? 'OK' : 'NÃO');
+    });
+
+    // Fallback caso DOMContentLoaded já tenha acontecido
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            // Já configurado acima
+        });
+    } else {
+        // DOM já carregado, executar agora
+        setTimeout(() => {
+            configurarFormulario();
+            configurarMascaraCPF();
+            configurarBotaoCopiar();
+            configurarBotaoVerificar();
+            configurarBotaoNovo();
+            console.log('Sistema PIX inicializado (fallback)');
+        }, 100);
+    }
 </script>
