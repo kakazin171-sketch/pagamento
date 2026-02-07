@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin - TikTok PIX</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #FF0050;
+            --secondary: #00F2EA;
+            --dark: #1a1a1a;
+            --light: #f8f9fa;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f5f7fa;
+        }
+        .sidebar {
+            background: var(--dark);
+            color: white;
+            height: 100vh;
+            position: fixed;
+            width: 250px;
+            transition: all 0.3s;
+        }
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+        .sidebar-menu a {
+            display: block;
+            padding: 12px 20px;
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+        }
+        .sidebar-menu a:hover, .sidebar-menu a.active {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: var(--primary);
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+        .navbar {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 0;
+            margin-bottom: 30px;
+        }
+        .stats-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-left: 5px solid var(--primary);
+        }
+        .stats-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+        .stats-icon.primary { background: rgba(255,0,80,0.1); color: var(--primary); }
+        .stats-icon.success { background: rgba(16,185,129,0.1); color: var(--success); }
+        .stats-icon.warning { background: rgba(245,158,11,0.1); color: var(--warning); }
+        .stats-icon.info { background: rgba(0,242,234,0.1); color: var(--secondary); }
+        .stats-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stats-label {
+            color: #6c757d;
+            font-size: 14px;
+        }
+        .table-container {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-top: 20px;
+        }
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-paid { background: #d1fae5; color: #065f46; }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-failed { background: #fee2e2; color: #991b1b; }
+        .refresh-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .logout-btn {
+            background: transparent;
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            padding: 8px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h4><i class="fas fa-shield-alt"></i> TikTok PIX Admin</h4>
+            <small class="text-muted">Painel Administrativo</small>
+        </div>
+        
+        <div class="sidebar-menu">
+            <a href="#" class="active" data-section="dashboard">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+            <a href="#" data-section="payments">
+                <i class="fas fa-money-bill-wave"></i> Pagamentos
+            </a>
+            <a href="#" data-section="users">
+                <i class="fas fa-users"></i> Clientes
+            </a>
+            <a href="#" data-section="settings">
+                <i class="fas fa-cog"></i> Configurações
+            </a>
+            <a href="#" data-section="logs">
+                <i class="fas fa-history"></i> Logs
+            </a>
+            <a href="#" data-section="api">
+                <i class="fas fa-code"></i> API Status
+            </a>
+        </div>
+        
+        <div style="position: absolute; bottom: 20px; left: 20px; right: 20px;">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <small class="text-muted">Conectado como:</small>
+                    <div id="adminUser">admin</div>
+                </div>
+                <button class="logout-btn" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Navbar -->
+        <div class="navbar">
+            <div class="container-fluid d-flex justify-content-between align-items-center">
+                <h5 class="mb-0" id="sectionTitle">Dashboard</h5>
+                <div class="d-flex gap-2">
+                    <button class="refresh-btn" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i> Atualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboardSection" class="section-content">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-icon primary">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <div class="stats-value" id="totalRevenue">R$ 0,00</div>
+                        <div class="stats-label">Receita Total</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-icon success">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stats-value" id="totalPayments">0</div>
+                        <div class="stats-label">Pagamentos Concluídos</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-icon warning">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stats-value" id="pendingPayments">0</div>
+                        <div class="stats-label">Pagamentos Pendentes</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-icon info">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stats-value" id="totalUsers">0</div>
+                        <div class="stats-label">Clientes Cadastrados</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfico -->
+            <div class="table-container">
+                <h5>📈 Últimos 7 Dias</h5>
+                <canvas id="revenueChart" height="100"></canvas>
+            </div>
+
+            <!-- Últimos Pagamentos -->
+            <div class="table-container">
+                <h5>🔄 Últimos Pagamentos</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Cliente</th>
+                                <th>Valor</th>
+                                <th>Status</th>
+                                <th>Data</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentPayments">
+                            <!-- Dados serão inseridos aqui -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção Pagamentos -->
+        <div id="paymentsSection" class="section-content d-none">
+            <div class="table-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5>💰 Todos os Pagamentos</h5>
+                    <div class="btn-group">
+                        <button class="btn btn-outline-primary btn-sm active" data-filter="all">Todos</button>
+                        <button class="btn btn-outline-success btn-sm" data-filter="paid">Pagos</button>
+                        <button class="btn btn-outline-warning btn-sm" data-filter="pending">Pendentes</button>
+                        <button class="btn btn-outline-danger btn-sm" data-filter="failed">Falhos</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Transação</th>
+                                <th>Cliente</th>
+                                <th>CPF</th>
+                                <th>Valor</th>
+                                <th>Status</th>
+                                <th>Criado em</th>
+                                <th>Pago em</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="allPayments">
+                            <!-- Dados serão inseridos aqui -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção Configurações -->
+        <div id="settingsSection" class="section-content d-none">
+            <div class="table-container">
+                <h5>⚙️ Configurações do Sistema</h5>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6>API Plumify</h6>
+                                <div class="mb-2">
+                                    <label class="form-label">API Token</label>
+                                    <input type="password" class="form-control" id="apiToken" value="••••••••••">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Account ID</label>
+                                    <input type="text" class="form-control" id="accountId">
+                                </div>
+                                <button class="btn btn-primary mt-2">Salvar API</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6>Configurações de Email</h6>
+                                <div class="mb-2">
+                                    <label class="form-label">SMTP Server</label>
+                                    <input type="text" class="form-control" id="smtpServer">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Email Notificações</label>
+                                    <input type="email" class="form-control" id="notificationEmail">
+                                </div>
+                                <button class="btn btn-primary mt-2">Salvar Email</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-body">
+                        <h6>Exportar Dados</h6>
+                        <button class="btn btn-success me-2" id="exportCSV">
+                            <i class="fas fa-file-csv"></i> Exportar CSV
+                        </button>
+                        <button class="btn btn-info me-2" id="exportJSON">
+                            <i class="fas fa-file-code"></i> Exportar JSON
+                        </button>
+                        <button class="btn btn-danger" id="clearData">
+                            <i class="fas fa-trash"></i> Limpar Dados
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Configurações
+        const API_BASE = window.location.origin;
+        let authToken = localStorage.getItem('adminToken');
+        let currentUser = localStorage.getItem('adminUser');
+
+        // Verificar login
+        if (!authToken || !currentUser) {
+            window.location.href = '/login.html';
+        }
+
+        // Elementos DOM
+        const sections = {
+            dashboard: document.getElementById('dashboardSection'),
+            payments: document.getElementById('paymentsSection'),
+            settings: document.getElementById('settingsSection'),
+            users: document.getElementById('usersSection'),
+            logs: document.getElementById('logsSection'),
+            api: document.getElementById('apiSection')
+        };
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('adminUser').textContent = currentUser;
+            loadDashboard();
+            setupEventListeners();
+        });
+
+        // Função para carregar dashboard
+        async function loadDashboard() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/dashboard`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.status === 401) {
+                    logout();
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateDashboard(data.data);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dashboard:', error);
+            }
+        }
+
+        // Atualizar dashboard
+        function updateDashboard(data) {
+            // Estatísticas
+            document.getElementById('totalRevenue').textContent = 
+                `R$ ${data.totalRevenue.toFixed(2)}`;
+            document.getElementById('totalPayments').textContent = 
+                data.totalPayments;
+            document.getElementById('pendingPayments').textContent = 
+                data.pendingPayments;
+            document.getElementById('totalUsers').textContent = 
+                data.totalUsers;
+            
+            // Últimos pagamentos
+            updateRecentPayments(data.recentPayments);
+            
+            // Gráfico
+            renderChart(data.chartData);
+        }
+
+        // Atualizar lista de pagamentos
+        function updateRecentPayments(payments) {
+            const tbody = document.getElementById('recentPayments');
+            tbody.innerHTML = '';
+            
+            payments.forEach(payment => {
+                const row = document.createElement('tr');
+                
+                let statusBadge = '';
+                if (payment.status === 'paid') {
+                    statusBadge = '<span class="status-badge status-paid">Pago</span>';
+                } else if (payment.status === 'pending') {
+                    statusBadge = '<span class="status-badge status-pending">Pendente</span>';
+                } else {
+                    statusBadge = '<span class="status-badge status-failed">Falhou</span>';
+                }
+                
+                row.innerHTML = `
+                    <td>${payment.id}</td>
+                    <td>${payment.customer_name}</td>
+                    <td>R$ ${parseFloat(payment.amount).toFixed(2)}</td>
+                    <td>${statusBadge}</td>
+                    <td>${new Date(payment.created_at).toLocaleString('pt-BR')}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewPayment('${payment.id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        // Renderizar gráfico
+        function renderChart(chartData) {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            
+            if (window.revenueChart) {
+                window.revenueChart.destroy();
+            }
+            
+            window.revenueChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: 'Receita (R$)',
+                        data: chartData.data,
+                        borderColor: '#FF0050',
+                        backgroundColor: 'rgba(255, 0, 80, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return 'R$ ' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Navegação do menu
+            document.querySelectorAll('.sidebar-menu a').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Remover active de todos
+                    document.querySelectorAll('.sidebar-menu a').forEach(a => {
+                        a.classList.remove('active');
+                    });
+                    
+                    // Adicionar active ao clicado
+                    this.classList.add('active');
+                    
+                    // Mostrar seção correspondente
+                    const section = this.dataset.section;
+                    showSection(section);
+                });
+            });
+            
+            // Botão de refresh
+            document.getElementById('refreshBtn').addEventListener('click', loadDashboard);
+            
+            // Botão de logout
+            document.getElementById('logoutBtn').addEventListener('click', logout);
+            
+            // Filtros de pagamentos
+            document.querySelectorAll('[data-filter]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const filter = this.dataset.filter;
+                    filterPayments(filter);
+                });
+            });
+            
+            // Exportar dados
+            document.getElementById('exportCSV').addEventListener('click', exportCSV);
+            document.getElementById('exportJSON').addEventListener('click', exportJSON);
+            document.getElementById('clearData').addEventListener('click', clearData);
+        }
+
+        // Mostrar seção
+        function showSection(sectionName) {
+            // Esconder todas as seções
+            Object.values(sections).forEach(section => {
+                if (section) section.classList.add('d-none');
+            });
+            
+            // Mostrar seção selecionada
+            if (sections[sectionName]) {
+                sections[sectionName].classList.remove('d-none');
+                document.getElementById('sectionTitle').textContent = 
+                    document.querySelector(`[data-section="${sectionName}"]`).textContent.trim();
+            }
+            
+            // Carregar dados específicos da seção
+            if (sectionName === 'payments') {
+                loadAllPayments();
+            }
+        }
+
+        // Carregar todos os pagamentos
+        async function loadAllPayments() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/payments`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderAllPayments(data.payments);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar pagamentos:', error);
+            }
+        }
+
+        // Renderizar todos os pagamentos
+        function renderAllPayments(payments) {
+            const tbody = document.getElementById('allPayments');
+            tbody.innerHTML = '';
+            
+            payments.forEach(payment => {
+                const row = document.createElement('tr');
+                
+                let statusBadge = '';
+                if (payment.status === 'paid') {
+                    statusBadge = '<span class="status-badge status-paid">Pago</span>';
+                } else if (payment.status === 'pending') {
+                    statusBadge = '<span class="status-badge status-pending">Pendente</span>';
+                } else {
+                    statusBadge = '<span class="status-badge status-failed">Falhou</span>';
+                }
+                
+                row.innerHTML = `
+                    <td><small>${payment.transaction_id}</small></td>
+                    <td>
+                        <div>${payment.customer_name}</div>
+                        <small class="text-muted">${payment.customer_email}</small>
+                    </td>
+                    <td>${payment.customer_cpf}</td>
+                    <td><strong>R$ ${parseFloat(payment.amount).toFixed(2)}</strong></td>
+                    <td>${statusBadge}</td>
+                    <td>${new Date(payment.created_at).toLocaleDateString('pt-BR')}</td>
+                    <td>${payment.paid_at ? new Date(payment.paid_at).toLocaleDateString('pt-BR') : '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewPayment('${payment.id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" onclick="markAsPaid('${payment.id}')">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deletePayment('${payment.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        // Funções auxiliares
+        function viewPayment(id) {
+            alert(`Visualizando pagamento ${id}`);
+            // Implementar modal de visualização
+        }
+
+        async function markAsPaid(id) {
+            if (confirm('Marcar este pagamento como pago?')) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/admin/payments/${id}/paid`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Pagamento marcado como pago!');
+                        loadAllPayments();
+                        loadDashboard();
+                    }
+                } catch (error) {
+                    console.error('Erro ao marcar como pago:', error);
+                }
+            }
+        }
+
+        async function deletePayment(id) {
+            if (confirm('Tem certeza que deseja excluir este pagamento?')) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/admin/payments/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Pagamento excluído!');
+                        loadAllPayments();
+                        loadDashboard();
+                    }
+                } catch (error) {
+                    console.error('Erro ao excluir pagamento:', error);
+                }
+            }
+        }
+
+        function filterPayments(filter) {
+            // Implementar filtragem
+            console.log('Filtrando por:', filter);
+        }
+
+        function exportCSV() {
+            alert('Exportando dados em CSV...');
+            // Implementar exportação CSV
+        }
+
+        function exportJSON() {
+            alert('Exportando dados em JSON...');
+            // Implementar exportação JSON
+        }
+
+        function clearData() {
+            if (confirm('ATENÇÃO: Isso apagará todos os dados. Continuar?')) {
+                alert('Função de limpeza de dados');
+                // Implementar limpeza
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+            window.location.href = '/login.html';
+        }
+
+        // Verificar token periodicamente
+        setInterval(() => {
+            if (!localStorage.getItem('adminToken')) {
+                logout();
+            }
+        }, 300000); // 5 minutos
+
+        // Expor funções globalmente
+        window.viewPayment = viewPayment;
+        window.markAsPaid = markAsPaid;
+        window.deletePayment = deletePayment;
+    </script>
+</body>
+</html>

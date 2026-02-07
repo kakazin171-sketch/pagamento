@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 Admin TikTok PIX</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --tiktok-black: #000000;
+            --tiktok-dark: #121212;
+            --tiktok-gray: #1a1a1a;
+            --tiktok-light: #2d2d2d;
+            --tiktok-pink: #ff0050;
+            --tiktok-cyan: #00f2ea;
+            --tiktok-white: #ffffff;
+            --tiktok-text: #e0e0e0;
+            --tiktok-text-secondary: #a0a0a0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #000000 0%, #121212 50%, #1a1a1a 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Animação de fundo */
+        .background-animation {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .gradient-circle {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.3;
+        }
+
+        .circle-1 {
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(45deg, var(--tiktok-pink), var(--tiktok-cyan));
+            top: -100px;
+            right: -100px;
+            animation: float 20s infinite alternate ease-in-out;
+        }
+
+        .circle-2 {
+            width: 300px;
+            height: 300px;
+            background: linear-gradient(45deg, var(--tiktok-cyan), var(--tiktok-pink));
+            bottom: -100px;
+            left: -100px;
+            animation: float 25s infinite alternate-reverse ease-in-out;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(30px, 30px) rotate(180deg); }
+        }
+
+        .login-container {
+            background: rgba(26, 26, 26, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 50px 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 
+                0 20px 60px rgba(0, 0, 0, 0.8),
+                0 0 0 1px rgba(255, 255, 255, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .login-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 
+                0 25px 80px rgba(0, 0, 0, 0.9),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+
+        .container-border {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 24px;
+            background: linear-gradient(135deg, 
+                rgba(255, 0, 80, 0.3), 
+                rgba(0, 242, 234, 0.3), 
+                rgba(255, 0, 80, 0.1));
+            mask: 
+                linear-gradient(#fff 0 0) content-box, 
+                linear-gradient(#fff 0 0);
+            mask-composite: exclude;
+            padding: 1px;
+            pointer-events: none;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .logo-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--tiktok-pink), var(--tiktok-cyan));
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            box-shadow: 
+                0 10px 30px rgba(255, 0, 80, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .logo-icon::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                transparent,
+                rgba(255, 255, 255, 0.1),
+                transparent
+            );
+            transform: rotate(45deg);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            0% { transform: rotate(45deg) translateX(-200%); }
+            100% { transform: rotate(45deg) translateX(200%); }
+        }
+
+        .logo-icon i {
+            font-size: 32px;
+            color: white;
+            z-index: 1;
+        }
+
+        .logo h1 {
+            color: var(--tiktok-white);
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(45deg, var(--tiktok-pink), var(--tiktok-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo p {
+            color: var(--tiktok-text-secondary);
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .form-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--tiktok-text);
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-label i {
+            color: var(--tiktok-cyan);
+            font-size: 16px;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 18px 20px 18px 50px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: var(--tiktok-text);
+            font-size: 16px;
+            font-weight: 400;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .input-field:focus {
+            border-color: var(--tiktok-cyan);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 
+                0 0 0 3px rgba(0, 242, 234, 0.15),
+                inset 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .input-field::placeholder {
+            color: var(--tiktok-text-secondary);
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--tiktok-cyan);
+            font-size: 18px;
+            transition: color 0.3s ease;
+        }
+
+        .input-field:focus + .input-icon {
+            color: var(--tiktok-pink);
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--tiktok-text-secondary);
+            cursor: pointer;
+            font-size: 18px;
+            transition: color 0.3s ease;
+            padding: 5px;
+        }
+
+        .password-toggle:hover {
+            color: var(--tiktok-cyan);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--tiktok-pink), #ff3366);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .login-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.2), 
+                transparent);
+            transition: 0.5s;
+        }
+
+        .login-btn:hover::before {
+            left: 100%;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 15px 40px rgba(255, 0, 80, 0.4),
+                0 5px 15px rgba(0, 242, 234, 0.2);
+            background: linear-gradient(135deg, #ff3366, var(--tiktok-pink));
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .login-btn i {
+            font-size: 18px;
+            transition: transform 0.3s ease;
+        }
+
+        .login-btn:hover i {
+            transform: scale(1.2);
+        }
+
+        .error-message {
+            background: rgba(255, 0, 80, 0.1);
+            border: 1px solid rgba(255, 0, 80, 0.3);
+            color: #ff6b6b;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            font-size: 14px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .error-message i {
+            font-size: 18px;
+        }
+
+        .security-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .security-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--tiktok-text-secondary);
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .security-item i {
+            color: var(--tiktok-cyan);
+            font-size: 14px;
+        }
+
+        .attempts-counter {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--tiktok-text-secondary);
+            font-size: 12px;
+            display: none;
+        }
+
+        .attempts-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .attempts-progress {
+            height: 100%;
+            background: linear-gradient(90deg, var(--tiktok-pink), var(--tiktok-cyan));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 0, 80, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(255, 0, 80, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 0, 80, 0);
+            }
+        }
+
+        .loading {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(26, 26, 26, 0.95);
+            border-radius: 24px;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--tiktok-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: var(--tiktok-text);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* Responsivo */
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 30px 20px;
+                margin: 20px;
+                border-radius: 20px;
+            }
+
+            .logo h1 {
+                font-size: 24px;
+            }
+
+            .input-field {
+                padding: 16px 20px 16px 50px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animação de fundo -->
+    <div class="background-animation">
+        <div class="gradient-circle circle-1"></div>
+        <div class="gradient-circle circle-2"></div>
+    </div>
+
+    <div class="login-container">
+        <div class="container-border"></div>
+
+        <div class="logo">
+            <div class="logo-icon pulse">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <h1>TIKTOK PIX ADMIN</h1>
+            <p>Painel Administrativo Seguro</p>
+        </div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="fas fa-user"></i>
+                    USUÁRIO
+                </label>
+                <div class="input-wrapper">
+                    <input 
+                        type="text" 
+                        id="username" 
+                        class="input-field" 
+                        placeholder="Digite seu usuário"
+                        required
+                        autocomplete="off"
+                        autofocus
+                    >
+                    <div class="input-icon">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="fas fa-lock"></i>
+                    SENHA
+                </label>
+                <div class="input-wrapper">
+                    <input 
+                        type="password" 
+                        id="password" 
+                        class="input-field" 
+                        placeholder="Digite sua senha"
+                        required
+                    >
+                    <div class="input-icon">
+                        <i class="fas fa-key"></i>
+                    </div>
+                    <button type="button" class="password-toggle" id="togglePassword">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="login-btn" id="submitBtn">
+                <i class="fas fa-sign-in-alt"></i>
+                ACESSAR PAINEL
+            </button>
+
+            <div class="error-message" id="errorMessage">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="errorText">Credenciais inválidas. Tente novamente.</span>
+            </div>
+
+            <div class="attempts-counter" id="attemptsCounter">
+                <div>Tentativas restantes: <span id="attemptsLeft">5</span></div>
+                <div class="attempts-bar">
+                    <div class="attempts-progress" id="attemptsProgress"></div>
+                </div>
+            </div>
+        </form>
+
+        <div class="security-info">
+            <div class="security-item">
+                <i class="fas fa-shield-check"></i>
+                <span>SSL/TLS</span>
+            </div>
+            <div class="security-item">
+                <i class="fas fa-lock"></i>
+                <span>Criptografado</span>
+            </div>
+            <div class="security-item">
+                <i class="fas fa-history"></i>
+                <span>Logs Ativos</span>
+            </div>
+        </div>
+
+        <!-- Loading overlay -->
+        <div class="loading" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Autenticando...</div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginForm = document.getElementById('loginForm');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const togglePassword = document.getElementById('togglePassword');
+            const submitBtn = document.getElementById('submitBtn');
+            const errorMessage = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            const attemptsCounter = document.getElementById('attemptsCounter');
+            const attemptsLeft = document.getElementById('attemptsLeft');
+            const attemptsProgress = document.getElementById('attemptsProgress');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+
+            let attempts = 0;
+            const maxAttempts = 5;
+            let isSubmitting = false;
+
+            // Redirecionar se já estiver logado
+            if (localStorage.getItem('adminToken')) {
+                window.location.href = '/admin.html';
+            }
+
+            // Alternar visibilidade da senha
+            togglePassword.addEventListener('click', function() {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                this.innerHTML = type === 'password' ? 
+                    '<i class="fas fa-eye"></i>' : 
+                    '<i class="fas fa-eye-slash"></i>';
+            });
+
+            // Atualizar barra de tentativas
+            function updateAttemptsCounter() {
+                attemptsLeft.textContent = maxAttempts - attempts;
+                const progress = (attempts / maxAttempts) * 100;
+                attemptsProgress.style.width = `${progress}%`;
+                
+                if (attempts >= maxAttempts) {
+                    attemptsCounter.style.display = 'block';
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-ban"></i> ACESSO BLOQUEADO';
+                    submitBtn.style.background = 'linear-gradient(135deg, #666, #888)';
+                    errorText.textContent = 'Muitas tentativas. Tente novamente em 30 minutos.';
+                    errorMessage.style.display = 'flex';
+                    
+                    // Bloquear por 30 minutos
+                    localStorage.setItem('loginBlocked', Date.now());
+                    setTimeout(() => {
+                        localStorage.removeItem('loginBlocked');
+                        attempts = 0;
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ACESSAR PAINEL';
+                        submitBtn.style.background = '';
+                        attemptsCounter.style.display = 'none';
+                        errorMessage.style.display = 'none';
+                    }, 30 * 60 * 1000);
+                } else if (attempts > 0) {
+                    attemptsCounter.style.display = 'block';
+                }
+            }
+
+            // Verificar se está bloqueado
+            const blockedTime = localStorage.getItem('loginBlocked');
+            if (blockedTime) {
+                const timePassed = Date.now() - parseInt(blockedTime);
+                if (timePassed < 30 * 60 * 1000) {
+                    attempts = maxAttempts;
+                    updateAttemptsCounter();
+                } else {
+                    localStorage.removeItem('loginBlocked');
+                }
+            }
+
+            // Animação de entrada
+            usernameInput.addEventListener('focus', function() {
+                this.parentElement.parentElement.style.transform = 'translateY(-2px)';
+            });
+
+            usernameInput.addEventListener('blur', function() {
+                this.parentElement.parentElement.style.transform = 'translateY(0)';
+            });
+
+            passwordInput.addEventListener('focus', function() {
+                this.parentElement.parentElement.style.transform = 'translateY(-2px)';
+            });
+
+            passwordInput.addEventListener('blur', function() {
+                this.parentElement.parentElement.style.transform = 'translateY(0)';
+            });
+
+            // Submissão do formulário
+            loginForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                if (isSubmitting) return;
+                
+                const username = usernameInput.value.trim();
+                const password = passwordInput.value;
+                
+                // Validação básica
+                if (!username || !password) {
+                    errorText.textContent = 'Preencha todos os campos.';
+                    errorMessage.style.display = 'flex';
+                    usernameInput.focus();
+                    return;
+                }
+
+                // Mostrar loading
+                isSubmitting = true;
+                loadingOverlay.style.display = 'flex';
+                submitBtn.disabled = true;
+
+                try {
+                    const response = await fetch('/api/admin/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ username, password })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Sucesso - salvar token
+                        localStorage.setItem('adminToken', data.token);
+                        localStorage.setItem('adminUser', username);
+                        localStorage.setItem('lastLogin', Date.now());
+                        
+                        // Resetar tentativas
+                        attempts = 0;
+                        localStorage.removeItem('failedAttempts');
+                        
+                        // Animação de sucesso
+                        submitBtn.innerHTML = '<i class="fas fa-check"></i> ACESSO PERMITIDO';
+                        submitBtn.style.background = 'linear-gradient(135deg, #00f2ea, #00c2b8)';
+                        
+                        // Redirecionar após 1 segundo
+                        setTimeout(() => {
+                            window.location.href = '/admin.html';
+                        }, 1000);
+                        
+                    } else {
+                        // Falha no login
+                        attempts++;
+                        localStorage.setItem('failedAttempts', attempts);
+                        
+                        errorText.textContent = data.error || 'Credenciais inválidas.';
+                        errorMessage.style.display = 'flex';
+                        
+                        // Efeito de shake
+                        loginForm.style.animation = 'shake 0.5s ease';
+                        setTimeout(() => {
+                            loginForm.style.animation = '';
+                        }, 500);
+                        
+                        updateAttemptsCounter();
+                    }
+                    
+                } catch (error) {
+                    console.error('Erro de conexão:', error);
+                    errorText.textContent = 'Erro de conexão. Verifique sua internet.';
+                    errorMessage.style.display = 'flex';
+                } finally {
+                    // Esconder loading
+                    isSubmitting = false;
+                    loadingOverlay.style.display = 'none';
+                    submitBtn.disabled = false;
+                    
+                    if (attempts < maxAttempts) {
+                        submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ACESSAR PAINEL';
+                    }
+                }
+            });
+
+            // Carregar tentativas anteriores
+            const savedAttempts = localStorage.getItem('failedAttempts');
+            if (savedAttempts) {
+                attempts = parseInt(savedAttempts);
+                if (attempts > 0) {
+                    updateAttemptsCounter();
+                }
+            }
+
+            // Adicionar estilo de shake
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes shake {
+                    0%, 100% { transform: translateX(0); }
+                    10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+                    20%, 40%, 60%, 80% { transform: translateX(10px); }
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Focar no campo de usuário
+            usernameInput.focus();
+        });
+    </script>
+</body>
+</html>
