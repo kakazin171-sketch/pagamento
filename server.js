@@ -458,13 +458,85 @@ app.get('/api/pix/status/:id', async (req, res) => {
     }
 });
 
-// ROTA PARA TODAS AS OUTRAS REQUESTS - SERVIR ARQUIVOS ESTÁTICOS
-app.get('*', (req, res) => {
-    // Tenta servir arquivos estáticos primeiro
+// ROTA PARA SERVIR ARQUIVOS ESTÁTICOS (ADICIONE ESTA ROTA ANTES DA CATCH-ALL)
+app.get('*.html', (req, res) => {
     res.sendFile(__dirname + req.path, (err) => {
         if (err) {
-            // Se arquivo não encontrado, redireciona para página principal
-            res.redirect('/pagamento');
+            // Se arquivo não encontrado, não redireciona
+            res.status(404).send('Página não encontrada');
+        }
+    });
+});
+
+// ROTA PARA IMAGENS, CSS, JS (ADICIONE ESTA ROTA TAMBÉM)
+app.get('*.(png|jpg|jpeg|gif|css|js|ico|svg)', (req, res) => {
+    res.sendFile(__dirname + req.path, (err) => {
+        if (err) {
+            res.status(404).send('Arquivo não encontrado');
+        }
+    });
+});
+
+// ROTA PARA TODAS AS OUTRAS REQUESTS - APENAS PARA API (MUDE ISSO)
+app.get('*', (req, res) => {
+    // Se for uma rota de API, retorna 404
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({
+            success: false,
+            error: 'Rota da API não encontrada'
+        });
+    }
+    
+    // Para qualquer outra coisa, tenta servir como arquivo estático
+    res.sendFile(__dirname + req.path, (err) => {
+        if (err) {
+            // Se não for um arquivo, mostra 404 em vez de redirecionar
+            res.status(404).send(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>404 - Página não encontrada</title>
+                    <style>
+                        body { 
+                            font-family: Arial, sans-serif; 
+                            text-align: center; 
+                            padding: 50px; 
+                            background: #f5f5f5;
+                        }
+                        h1 { color: #ff0050; }
+                        .container { 
+                            max-width: 600px; 
+                            margin: 0 auto; 
+                            background: white; 
+                            padding: 30px; 
+                            border-radius: 10px;
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                        }
+                        .links { margin-top: 20px; }
+                        .links a { 
+                            display: inline-block; 
+                            margin: 10px; 
+                            padding: 10px 20px; 
+                            background: #ff0050; 
+                            color: white; 
+                            text-decoration: none;
+                            border-radius: 5px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>404 - Página não encontrada</h1>
+                        <p>A página que você está procurando não existe.</p>
+                        <div class="links">
+                            <a href="/pagamento">Página de Pagamento</a>
+                            <a href="/entrar-admin.html">Admin Login</a>
+                            <a href="/admin.html">Painel Admin</a>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `);
         }
     });
 });
@@ -487,4 +559,3 @@ app.listen(PORT, () => {
     ==========================================
     `);
 });
-[file content end]
